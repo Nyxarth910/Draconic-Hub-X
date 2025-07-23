@@ -96,6 +96,8 @@ local Configuration = {
     EmoteSpeed = 2500,
     InfiniteSlide = false,
     SlideAcceleration = -3,
+    GavityToggle = false,
+    Gravity = 20,
     BHOPType = "Acceleration",
     BHOPAcceleration = -0.1,
     BHOPEnable = false,
@@ -113,5 +115,39 @@ local Configuration = {
     High = false
   }
 
-  Visual = {}
+  Visual = {
+    OriginalCosmestics = {
+      [1] = "",
+      [2] = "",
+      [3] = "",
+      [4] = "",
+    }
+
+    ModifyCosmestics = {
+      [1] = "",
+      [2] = "",
+      [3] = "",
+      [4] = "",
+    }
+
+    OriginalEmotes = {
+      [1] = "",
+      [2] = "",
+      [3] = "",
+      [4] = "",
+      [5] = "",
+      [6] = ""
+    }
+
+    ModifyEmotes = {
+      [1] = "",
+      [2] = "",
+      [3] = "",
+      [4] = "",
+      [5] = "",
+      [6] = ""
+    }
+  }
+
+  
 }
