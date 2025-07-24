@@ -1,7 +1,4 @@
-
--- Too lazy, I'll finish it later.
-
-local Configuration = {
+local DConfiguration = {
   ESP = {
     Players = false,
     Nextbots = false,
@@ -51,7 +48,7 @@ local Configuration = {
     GroundAcceleration = 5
   }
 
-  OverridePlayerAdjustment = {
+  ModifyPlayerAdjustment = {
     Speed = 1500,
     JumpHeight = 3,
     JumpCap = 1,
@@ -151,3 +148,6 @@ local Configuration = {
 
   
 }
+
+
+return DConfiguration
