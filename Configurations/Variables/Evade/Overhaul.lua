@@ -1,3 +1,4 @@
+
 local DConfiguration = {
   ESP = {
     Players = false,
@@ -13,12 +14,20 @@ local DConfiguration = {
     Objective = false
   }
 
+  Boxes = {
+    Players = false,
+    Nextbots = false,
+    Tickets = false,
+    Objective = false
+  }
+
   Removalist = {
     CameraShake = false,
     ReducingRewards = false,
     DamageParts = false
   }
-
+  
+  AutoWhistle = false,
   ShowTimer = false,
   Fly = false,
   FlySpeed = 20,
@@ -92,8 +101,10 @@ local DConfiguration = {
 
   GameAutomation = {
     InstantRevive = false,
+    ReviveWhileEmote = false,
     ReviveDelay = 0.1,
     AutoCarry = false,
+    CarryWhileEmote = false,
     MacroMode = false,
     SelectedEmote = "BoldMarch",
   }
