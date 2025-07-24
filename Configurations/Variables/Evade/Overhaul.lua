@@ -57,6 +57,16 @@ local DConfiguration = {
     GroundAcceleration = 5
   }
 
+  -- optimize pluh
+  lastTick = {
+    Speed = 0,
+    JumpHeight = 0,
+    JumpCap = 0,
+    JumpAcceleration = 0,
+    AirStrafe = 0,
+    GroundAcceleration = 0
+  }
+
   Humanoids = {
     WalkspeedCF = false,
     OriginalJumpHeight = false,    
