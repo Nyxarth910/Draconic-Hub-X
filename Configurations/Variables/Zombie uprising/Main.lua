@@ -5,6 +5,7 @@ local DConfiguration = {
     Firerate = 1000,
     NoReload = false,
     InstantReload = false,
+    RecoilDelay = 0.1,
     NoRecoil = false,
   },
 
