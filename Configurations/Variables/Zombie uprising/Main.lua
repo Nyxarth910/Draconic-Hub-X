@@ -6,18 +6,18 @@ local DConfiguration = {
     NoReload = false,
     InstantReload = false,
     NoRecoil = false,
-  }
+  },
 
   KnifeMods = {
-    FastSwinging = false,    
-  }
+    FastSwinging = false,
+  },
 
   GameAutomations = {
     AutoRestoreAmmo = false,
     SelectRestoreSection = "Primary",
     AutoUpgrade = false,
     AutoRevivePlayers = false,
-  }
+  },
 
   AntiAFK = true,
 
@@ -25,7 +25,7 @@ local DConfiguration = {
     GodMode = false,
     Walkspeed = 16,
     JumpPower = 50,
-  }
+  },
 
   Fly = false,
   FlySpeed = 20,
@@ -44,8 +44,8 @@ local DConfiguration = {
       OpenCases = false,
       SelectedCases = "Bronze Cases",
       Amount = "One",
-    }    
-  }
+    },
+  },
 
   GameplayModification = {
     KillAura = false,
@@ -56,33 +56,33 @@ local DConfiguration = {
       Tertiary = false,
       Wallbang = false,
       FOVSize = 250,
-    }
+    },
 
     HitPart = {
       Enabled = false,
       Zombies = false,
       Bosses = false,
       Ranges = 30,
-    }
+    },
 
     ESP = {
       Zombies = false,
       Bosses = false,
       Players = false,
-    }
+    },
 
     Tracers = {
       Zombies = false,
       Bosses = false,
       Players = false,
-    }
+    },
 
     Boxes = {
       Zombies = false,
       Bosses = false,
       Players = false,
-    }
-  }
+    },
+  },
 
   DataModification = {
     Loadout = {
@@ -92,8 +92,8 @@ local DConfiguration = {
       Melee = "",
       Perks = "",
       Grenade = "",
-    }
-  }
+    },
+  },
 
    Attachments = {
      LoadoutSections = 1,
@@ -103,13 +103,13 @@ local DConfiguration = {
      Capacity = "",
      Barrel = "",
      Grip = "",
-   }
+   },
 
    GunSkinChanger = {
     GunName = "",
     Skin1 = "",
     Skin2 = "",
-   }
+   },
 
    AvatarModification = {
      AvatarSection = 1,
