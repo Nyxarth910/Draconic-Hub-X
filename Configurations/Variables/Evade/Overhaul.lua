@@ -4,28 +4,28 @@ local DConfiguration = {
     Players = false,
     Nextbots = false,
     Tickets = false,
-    Objective = false
-  }
+    Objective = false,
+  },
 
   Tracers = {
     Players = false,
     Nextbots = false,
     Tickets = false,
-    Objective = false
-  }
+    Objective = false,
+  },
 
   Boxes = {
     Players = false,
     Nextbots = false,
     Tickets = false,
-    Objective = false
-  }
+    Objective = false,
+  },
 
   Removalist = {
     CameraShake = false,
     ReducingRewards = false,
-    DamageParts = false
-  }
+    DamageParts = false,
+  },
   
   AutoWhistle = false,
   ShowTimer = false,
@@ -35,8 +35,8 @@ local DConfiguration = {
 
   FarmingStates = {
     IsReviving = false,
-    IsCollectingTickets = false
-  }
+    IsCollectingTickets = false,
+  },
 
   AFKFarm = false,
   FarmTickets = false,
@@ -46,7 +46,7 @@ local DConfiguration = {
   AntiNextbotRange = 15,
   AntiNextbotType = "Spawn",
 
-  PlayerAdjustmentType = "Optimized"
+  PlayerAdjustmentType = "Optimized",
   
   DefaultPlayerAdjustment = {
     Speed = 1500,
@@ -54,8 +54,8 @@ local DConfiguration = {
     JumpCap = 1,
     JumpAcceleration = 1.5,
     AirStrafe = 182,
-    GroundAcceleration = 5
-  }
+    GroundAcceleration = 5,
+  },
 
   ModifyPlayerAdjustment = {
     Speed = 1500,
@@ -63,8 +63,8 @@ local DConfiguration = {
     JumpCap = 1,
     JumpAcceleration = 1.5,
     AirStrafe = 182,
-    GroundAcceleration = 5
-  }
+    GroundAcceleration = 5,
+  },
 
   -- optimize pluh
   lastTick = {
@@ -73,31 +73,31 @@ local DConfiguration = {
     JumpCap = 0,
     JumpAcceleration = 0,
     AirStrafe = 0,
-    GroundAcceleration = 0
-  }
+    GroundAcceleration = 0,
+  },
 
   Humanoids = {
     WalkspeedCF = false,
     OriginalJumpHeight = false,    
     CF = 5,
-    JP = 20
-  }
+    JP = 20,
+  },
 
   BounceAdjustment = {
     GetCurrentSpeed = 0,
     EnableBounce = false,
     DefaultBounce = 80,
-    EmoteBounce = 120
-  }
+    EmoteBounce = 120,
+  },
 
   CameraAdjustment = {
     StretchX = 1,
-    StretchY = 1
-  }
+    StretchY = 1,
+  },
 
   GunAdjustment = {
-    v = nil
-  }
+    v = nil,
+  },
 
   GameAutomation = {
     InstantRevive = false,
@@ -107,7 +107,7 @@ local DConfiguration = {
     CarryWhileEmote = false,
     MacroMode = false,
     SelectedEmote = "BoldMarch",
-  }
+  },
 
   MovementModification = {
     FakeEmoteDash = false,
@@ -123,15 +123,15 @@ local DConfiguration = {
     HipHeight1 = 0,
     HipHeight2 = 0,
     LagSwitchEnable = false,
-    LagSwitchFPSCap = "1"
-    LagSwitchDelay = 0.1
-  }
+    LagSwitchFPSCap = "1",
+    LagSwitchDelay = 0.1,
+  },
 
   AntiLags = {
     Low = false,
     Moderate = false,
-    High = false
-  }
+    High = false,
+  },
 
   Visual = {
     OriginalCosmestics = {
@@ -139,14 +139,14 @@ local DConfiguration = {
       [2] = "",
       [3] = "",
       [4] = "",
-    }
+    },
 
     ModifyCosmestics = {
       [1] = "",
       [2] = "",
       [3] = "",
       [4] = "",
-    }
+    },
 
     OriginalEmotes = {
       [1] = "",
@@ -154,8 +154,8 @@ local DConfiguration = {
       [3] = "",
       [4] = "",
       [5] = "",
-      [6] = ""
-    }
+      [6] = "",
+    },
 
     ModifyEmotes = {
       [1] = "",
@@ -163,8 +163,8 @@ local DConfiguration = {
       [3] = "",
       [4] = "",
       [5] = "",
-      [6] = ""
-    }
+      [6] = "",
+    },
   }
 
   
