@@ -1,0 +1,3 @@
+local Size = 0.3
+
+return Size
