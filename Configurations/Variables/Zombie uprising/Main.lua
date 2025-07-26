@@ -34,9 +34,7 @@ local DConfiguration = {
 
   AutoFarm = {
     Height = 5,
-    Zombies = false,
-    Boss = false,
-    Hordes = false,
+    Farming = false,
     PowerUps = false,
     CarePackage = false,
     EventRewards = false,
@@ -49,7 +47,8 @@ local DConfiguration = {
   },
 
   GameplayModification = {
-    KillAura = false,
+    KillAuraZombies = false,
+    KillAuraBosses = false,
     KillAuraRange = 500,
     SilentAim = {
       Zombies = false,
