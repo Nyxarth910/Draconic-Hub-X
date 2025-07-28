@@ -114,7 +114,7 @@ local DConfiguration = {
 
   MovementModification = {
     FakeEmoteDash = false,
-    EmoteSpeed = 2500,
+    EmoteSpeed = 2000,
     InfiniteSlide = false,
     SlideAcceleration = -3,
     GavityToggle = false,
