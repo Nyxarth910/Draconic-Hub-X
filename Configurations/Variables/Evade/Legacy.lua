@@ -78,11 +78,12 @@ local DConfiguration = {
 
   MovementModification = {
     FakeEmoteDash = false,
+    FakeEmoteDash2 = false,
     EmoteSpeed = 2000,
     GavityToggle = false,
     Gravity = 10,
     BHOPType = "Acceleration",
-    BHOPAcceleration = -0.1,
+    BHOPAcceleration = 1,
     BHOPEnable = false,
     BHOPJumpButton = false,
     BHOPKeybind = false,
