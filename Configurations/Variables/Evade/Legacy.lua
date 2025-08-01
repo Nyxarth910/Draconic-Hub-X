@@ -47,14 +47,14 @@ local DConfiguration = {
     Speed = 1500,
     JumpHeight = 3,
     AirStrafe = 182,
-    GroundAcceleration = 5,
+    GroundAcceleration = 1,
   },
 
   ModifyPlayerAdjustment = {
     Speed = 1500,
     JumpHeight = 3,
     AirStrafe = 182,
-    GroundAcceleration = 5,
+    GroundAcceleration = 1,
   },
 
   Humanoids = {
