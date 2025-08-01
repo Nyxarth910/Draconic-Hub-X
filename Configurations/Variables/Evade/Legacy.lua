@@ -105,19 +105,19 @@ local DConfiguration = {
   Visual = {
     OriginalCosmetics = {
       [1] = "",
-    }
+    },
 
     ModifyCosmetics = {
       [1] = "",
-    }
+    },
 
     OriginalEmotes = {
       [1] = "",
-    }
+    },
 
     ModifyEmotes = {
       [1] = "",
-    }
+    },
   }
 
   
