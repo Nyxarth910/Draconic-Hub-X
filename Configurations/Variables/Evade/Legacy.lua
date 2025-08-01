@@ -100,8 +100,23 @@ local DConfiguration = {
     High = false,
   },
 
+  -- idk if the visual is fe in legacy
   Visual = {
-    [1] = "i wasn't even finish yet ;-;",
+    OriginalCosmetics = {
+      [1] = "",
+    }
+
+    ModifyCosmetics = {
+      [1] = "",
+    }
+
+    OriginalEmotes = {
+      [1] = "",
+    }
+
+    ModifyEmotes = {
+      [1] = "",
+    }
   }
 
   
