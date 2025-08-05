@@ -108,7 +108,9 @@ local DConfiguration = {
     ReviveDelay = 0.1,
     AutoCarry = false,
     CarryWhileEmote = false,
+    AutoCarryKey = false,
     MacroMode = false,
+    MacroKey = false,
     SelectedEmote = "BoldMarch",
   },
 
@@ -118,6 +120,7 @@ local DConfiguration = {
     InfiniteSlide = false,
     SlideAcceleration = -3,
     GavityToggle = false,
+    GravityKey = false,
     Gravity = 10,
     BHOPType = "Acceleration",
     BHOPAcceleration = -0.1,
