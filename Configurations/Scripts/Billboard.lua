@@ -1,5 +1,5 @@
 local function CreateBillboardESP(Name, Part, Color, TextSize)
-  if not Part of Part:FindFirstChild(Name) then return nil end
+  if not Part or Part:FindFirstChild(Name) then return nil end
 
   local BillboardGui = Instance.new("BillboardGui")
   local TextLabel = Instance.new("TextLabel")
