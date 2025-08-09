@@ -24,18 +24,34 @@ local function CreateBillboardESP(Name, Part, Color, TextSize)
   return BillboardGui
 end
 
-local function UpdateBillboardESP(Name, Part, Color, TextSize)
+local function UpdateBillboardESP(Name, Part, Color, TextSize, PartPosition)
   if not Part then return false end
 
   local esp = Part:FindFirstChild(Name)
   if esp and esp:FindFirstChildOfClass("TextLabel") then
     local label = esp:FindFirstChildOfClass("TextLabel")
+    
     if Color then
       label.TextColor3 = Color
     end
+    
     if TextSize then
       label.TextSize = TextSize
     end
+    
+    if PartPosition then
+      local Pos 
+      if typeof(PartPosition) == "Instance" and PartPosition:IsA("BasePart") then
+        Pos = PartPosition.Position
+      elseif typeof(PartPosition) == "Vector3" then
+        Pos = PartPosition
+      end
+
+      if Pos then
+        local distance = math.floor((pos - Part.Position).Magnitude)
+        label.Text = string.format("%s - [ %d M ]", Part.Name, distance)
+      end
+    end    
     return true
   end
   return false
