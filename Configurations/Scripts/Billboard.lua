@@ -48,8 +48,8 @@ function UpdateBillboardESP(Name, Part, Color, TextSize, PartPosition)
       end
 
       if Pos then
-        local distance = math.floor((pos - Part.Position).Magnitude)
-        local name = Part.Parent.Name or Part.Name
+        local distance = math.floor((Pos - Part.Position).Magnitude)
+        local name = Part.Parent and Part.Parent.Name or Part.Name
         label.Text = string.format("%s - [ %d M ]", name, distance)
       end
     end    
