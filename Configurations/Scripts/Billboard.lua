@@ -1,4 +1,4 @@
-local function CreateBillboardESP(Name, Part, Color, TextSize)
+function CreateBillboardESP(Name, Part, Color, TextSize)
   if not Part or Part:FindFirstChild(Name) then return nil end
 
   local BillboardGui = Instance.new("BillboardGui")
@@ -24,7 +24,7 @@ local function CreateBillboardESP(Name, Part, Color, TextSize)
   return BillboardGui
 end
 
-local function UpdateBillboardESP(Name, Part, Color, TextSize, PartPosition)
+function UpdateBillboardESP(Name, Part, Color, TextSize, PartPosition)
   if not Part then return false end
 
   local esp = Part:FindFirstChild(Name)
