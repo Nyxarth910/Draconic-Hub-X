@@ -29,7 +29,7 @@ function CreateBillboardESP(Name, Part, Color, TextSize)
   return BillboardGui
 end
 
-function UpdateBillboardESP(Name, Part, Color, TextSize, PartPosition)
+function UpdateBillboardESP(Name, Part, NameText, Color, TextSize, PartPosition)
   if not Part then return false end
 
   local esp = Part:FindFirstChild(Name)
@@ -54,7 +54,7 @@ function UpdateBillboardESP(Name, Part, Color, TextSize, PartPosition)
 
       if Pos then
         local distance = math.floor((Pos - Part.Position).Magnitude)
-        local name = Part.Parent and Part.Parent.Name or Part.Name
+        local name = NameText or Part.Parent and Part.Parent.Name or Part.Name
         label.Text = string.format("%s - [ %d M ]", name, distance)
       end
     end    
