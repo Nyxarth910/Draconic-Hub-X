@@ -27,7 +27,7 @@ function UpdateHighlightESP(Name, Part, HighlightColor, OutlineColor, ShowHighli
   if OutlineColor then Highlight.OutlineColor = OutlineColor end
 
   if ShowHighlight ~= nil then
-    Highlight.FillTransparency = ShowHighlight and 0 or 1
+    Highlight.FillTransparency = ShowHighlight and 0 or 0.5
   end
 
   return true
