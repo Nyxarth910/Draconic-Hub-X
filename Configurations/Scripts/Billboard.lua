@@ -57,6 +57,9 @@ function UpdateBillboardESP(Name, Part, NameText, Color, TextSize, PartPosition)
         local name = NameText or Part.Parent and Part.Parent.Name or Part.Name
         label.Text = string.format("%s - [ %d M ]", name, distance)
       end
+    else
+      local name = NameText or Part.Parent and Part.Parent.Name or Part.Name
+      label.Text = string.format("%s - [ %d M ]", name)
     end    
     return true
   end
