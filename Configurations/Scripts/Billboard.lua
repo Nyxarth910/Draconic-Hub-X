@@ -23,7 +23,7 @@ function CreateBillboardESP(Name, Part, Color, TextSize)
   TextLabel.TextColor3 = Color or Color3.fromRGB(255, 255, 255)
 
   TextStroke.Parent = TextLabel
-  TextStroke.Thickness = 2
+  TextStroke.Thickness = 1
   TextStroke.Color = Color3.new(0, 0, 0)
 
   return BillboardGui
