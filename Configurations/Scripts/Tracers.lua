@@ -8,7 +8,7 @@ function CreateTracerESP(Name, Part, Color, Thickness)
   Line.ZIndex = 2
 
   Line.ESPDATA = {
-    Part1 = Part,
+    Part = Part,
     Color = Color or Color3.fromRGB(255, 255, 255),
     Thickness = Thickness or 1,
   }
@@ -36,6 +36,9 @@ function CreateTracerESP(Name, Part, Color, Thickness)
         end
         task.wait()
       end
+      if Line then
+        Line:Remove()
+      end
     end)
     
   return Line
@@ -49,6 +52,7 @@ end
 
 function DestroyTracerESP(Line)
   if Line then
+     Line.Visible = false
      Line:Remove()
   end
 end
