@@ -173,9 +173,16 @@ local DConfiguration = {
       [5] = "",
       [6] = "",
     },
-  }
+  },
 
-  
+  Settings = {
+    GuiScale = {
+      AutoCarry = 0,
+      Gravity = 0,
+      AutoJump = 0,
+      LagSwitch = 0,
+    },
+  }
 }
 
 
