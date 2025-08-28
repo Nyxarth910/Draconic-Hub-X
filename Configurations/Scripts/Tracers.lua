@@ -27,6 +27,18 @@ function UpdateTracerESP(Line, Props)
 
   if Props.Color ~= nil then Line.ESPDATA.Color = Props.Color end
   if Props.Thickness ~= nil then Line.ESPDATA.Thickness = Props.Thickness end
+
+  if OnScreen then
+    Line.Color = Line.ESPDATA.Color
+    Line.Thickness = Line.ESPDATA.Thickness
+
+    local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+    Line.From = ScreenCenter
+    Line.To = Vector2.new(PartPos.X, PartPos.Y)
+    Line.Visible = true
+  else
+    Line.Visible = false
+  end
 end
 
 function DestroyTracerESP(Line)
