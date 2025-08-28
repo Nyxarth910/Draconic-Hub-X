@@ -13,39 +13,18 @@ function CreateTracerESP(Name, Part, Color, Thickness)
     Thickness = Thickness or 1,
   }
 
-  task.spawn(function()
-      while Line do
-        local Camera = workspace.CurrentCamera
-
-        if Line.ESPDATA.Part and Line.ESPDATA.Part.Parent then
-          local PartPos, OnScreen = Camera:WorldToViewportPoint(Line.ESPDATA.Part.Position)
-
-          if OnScreen then
-            Line.Color = Line.ESPDATA.Color
-            Line.Thickness = Line.ESPDATA.Thickness
-
-            local ScreenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-            Line.From = ScreenCenter
-            Line.To = Vector2.new(PartPos.X, PartPos.Y)
-            Line.Visible = true
-         else
-            Line.Visible = false
-          end
-       else
-          Line.Visible = false
-        end
-        task.wait()
-      end
-      if Line then
-        Line:Remove()
-      end
-    end)
-    
   return Line
 end
 
 function UpdateTracerESP(Line, Props)
-  if not Line or not Props then return end
+  if not Line or not Line.ESPDATA or not Line.ESPDATA.Part or not Line.ESPDATA.Part.Parent then
+    if Line then Line.Visible = false end
+    return
+  end
+
+  local Camera = workspace.CurrentCamera
+  local PartPos, OnScreen = Camera:WorldToViewportPoint(Line.ESPDATA.Part.Position)
+
   if Props.Color ~= nil then Line.ESPDATA.Color = Props.Color end
   if Props.Thickness ~= nil then Line.ESPDATA.Thickness = Props.Thickness end
 end
