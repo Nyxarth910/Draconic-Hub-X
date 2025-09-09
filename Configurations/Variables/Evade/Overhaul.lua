@@ -229,7 +229,7 @@ local DConfiguration = {
       Gravity = 0,
       SprintSlide = 0,
       AutoJump = 0,
-      AutoCrouch
+      AutoCrouch = 0,
       LagSwitch = 0,
     },
   }
