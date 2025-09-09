@@ -1,4 +1,3 @@
-
 local DConfiguration = {
   ESP = {
     Players = false,
@@ -21,7 +20,7 @@ local DConfiguration = {
     Objective = false,
   },
 
-  Removalist = {
+  Removals = {
     CameraShake = false,
     ReducingRewards = false,
     DamageParts = false,
@@ -48,35 +47,45 @@ local DConfiguration = {
   AntiNextbot = false,
   AntiNextbotRange = 15,
   AntiNextbotType = "Spawn",
-
-  PlayerAdjustmentType = "Optimized",
   
-  DefaultPlayerAdjustment = {
-    Speed = 1500,
-    JumpHeight = 3,
-    JumpCap = 1,
-    JumpAcceleration = 1.5,
-    AirStrafe = 182,
-    GroundAcceleration = 5,
-  },
-
-  ModifyPlayerAdjustment = {
-    Speed = 1500,
-    JumpHeight = 3,
-    JumpCap = 1,
-    JumpAcceleration = 1.5,
-    AirStrafe = 182,
-    GroundAcceleration = 5,
-  },
-
-  -- optimize pluh
-  lastTick = {
-    Speed = 0,
-    JumpHeight = 0,
-    JumpCap = 0,
-    JumpAcceleration = 0,
-    AirStrafe = 0,
-    GroundAcceleration = 0,
+  PlayerAdjustment = {
+  	Type = "Optimized",
+  
+      Default = {
+      	Speed = 1500,
+          JumpHeight = 3,
+          JumpCap = 1,
+          JumpAcceleration = 1.5,
+          AirStrafe = 182,
+          GroundAcceleration = 5,
+      },
+      
+      Update = {
+      	Speed = 1500,
+          JumpHeight = 3,
+          JumpCap = 1,
+          JumpAcceleration = 1.5,
+          AirStrafe = 182,
+          GroundAcceleration = 5,
+      },
+      
+      Tick = {
+      	Speed = 0,
+          JumpHeight = 0,
+          JumpCap = 0,
+          JumpAcceleration = 0,
+          AirStrafe = 0,
+          GroundAcceleration = 0,
+      },
+      
+     Saved = {
+      	Speed = 1500,
+          JumpHeight = 3,
+          JumpCap = 1,
+          JumpAcceleration = 1.5,
+          AirStrafe = 182,
+          GroundAcceleration = 5,
+      },
   },
 
   Humanoids = {
@@ -86,11 +95,20 @@ local DConfiguration = {
     JP = 20,
   },
 
-  BounceAdjustment = {
+  Utilities = {
     GetCurrentSpeed = 0,
-    EnableBounce = false,
-    DefaultBounce = 80,
-    EmoteBounce = 120,
+    BounceModification = {
+	    Enabled = false,
+	    DefaultBounce = 80,
+	    EmoteBounce = 120,
+	    SuperBounce = false,
+	    SuperBounceStrength = -50,
+	},
+	
+	LagSwitch = {
+		FPSMinimum = "1",
+		Delay = 0.1,
+	},
   },
 
   CameraAdjustment = {
@@ -103,36 +121,63 @@ local DConfiguration = {
   },
 
   GameAutomation = {
-    InstantRevive = false,
-    ReviveWhileEmote = false,
-    ReviveDelay = 0.1,
-    AutoCarry = false,
-    CarryWhileEmote = false,
-    AutoCarryKey = false,
-    MacroMode = false,
-    MacroKey = false,
-    SelectedEmote = "BoldMarch",
+    Revive = {
+    	Enabled = false,
+        FloatingButton = false,
+        Keybind = false,
+        WhileEmote = false,
+        Delay = 0.1,
+    },
+    
+    Carry = {
+    	Enabled = false,
+        FloatingButton = false,
+        Keybind = false,
+        WhileEmote = false,
+    },
+    
+    Macro = {
+    	SelectedEmote = "BoldMarch",
+		FloatingButton = false,
+		Keybind = false,
+    },
   },
 
   MovementModification = {
-    FakeEmoteDash = false,
-    EmoteSpeed = 2000,
-    InfiniteSlide = false,
-    SlideAcceleration = -3,
-    GavityToggle = false,
-    GravityKey = false,
-    Gravity = 10,
-    BHOPType = "Acceleration",
-    BHOPAcceleration = -0.1,
-    BHOPEnable = false,
-    BHOPJumpButton = false,
-    BHOPKeybind = false,
-    BHOPDelay = 0.01,
-    DisableBHOPUncap = false,
-    HipHeight1 = 0,
-    HipHeight2 = 0,
-    LagSwitchFPSCap = "1",
-    LagSwitchDelay = 0.1,
+    FakeEmoteDash = {
+        Enabled = false,
+    	Type = "Blatant",
+        Speed = 3000,
+        Acceleration = -2,
+    },
+    
+    SlideModification = {
+    	FloatingButton = false,
+        Enabled = false,
+        Acceleration = -3,
+    },
+    
+    Gravity = {
+	    FloatingButton = false,
+	    Keybind = false,
+	    Value = 10,
+    },
+    
+    BHOP = {
+        FloatingButton = false,
+        JumpButton = false,
+	    HipHeight1 = 0,
+	    HipHeight2 = 0,
+		Type = "Acceleration",
+		JumpType = "Simulated",
+		Acceleration = -0.1,
+		lastTick = 0.03,
+		
+		Crouch = {
+	 	   FloatingButton = false,
+			Type = "Ground",
+		},
+     },
   },
 
   AntiLags = {
@@ -177,13 +222,15 @@ local DConfiguration = {
 
   Settings = {
     GuiScale = {
+      SuperBounce = 0,
       AutoCarry = 0,
+      InstantRevive = 0,
+      AutoEmoteDash = 0,
       Gravity = 0,
+      SprintSlide = 0,
       AutoJump = 0,
+      AutoCrouch
       LagSwitch = 0,
     },
   }
 }
-
-
-return DConfiguration
