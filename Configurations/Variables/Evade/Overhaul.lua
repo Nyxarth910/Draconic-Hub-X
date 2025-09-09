@@ -68,6 +68,15 @@ local DConfiguration = {
         AirStrafe = 182,
         GroundAcceleration = 5,
       },
+
+	  Saved = {
+      	Speed = 1500,
+        JumpHeight = 3,
+        JumpCap = 1,
+        JumpAcceleration = 1.5,
+        AirStrafe = 182,
+        GroundAcceleration = 5,
+      },
       
       Tick = {
       	Speed = 0,
@@ -78,13 +87,13 @@ local DConfiguration = {
         GroundAcceleration = 0,
       },
       
-     Saved = {
-      	Speed = 1500,
-        JumpHeight = 3,
-        JumpCap = 1,
-        JumpAcceleration = 1.5,
-        AirStrafe = 182,
-        GroundAcceleration = 5,
+      Debounce = {
+      	Speed = false,
+        JumpHeight = false,
+        JumpCap = false,
+        JumpAcceleration = false,
+        AirStrafe = false,
+        GroundAcceleration = false,
       },
   },
 
