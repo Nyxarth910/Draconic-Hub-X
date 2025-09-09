@@ -243,3 +243,5 @@ local DConfiguration = {
     },
   }
 }
+
+return DConfiguration
