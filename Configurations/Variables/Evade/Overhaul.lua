@@ -173,6 +173,7 @@ local DConfiguration = {
     },
     
     BHOP = {
+        Enabled = false,
         FloatingButton = false,
         JumpButton = false,
 	    HipHeight1 = 0,
@@ -180,11 +181,13 @@ local DConfiguration = {
 		Type = "Acceleration",
 		JumpType = "Simulated",
 		Acceleration = -0.1,
-		lastTick = 0.03,
+		lastTick = 0.01,
 		
 		Crouch = {
 	 	   FloatingButton = false,
 			Type = "Ground",
+			lastTick = 0.1,
+			lastReleaseTick = 0.1,
 		},
      },
   },
@@ -243,5 +246,3 @@ local DConfiguration = {
     },
   }
 }
-
-return DConfiguration
