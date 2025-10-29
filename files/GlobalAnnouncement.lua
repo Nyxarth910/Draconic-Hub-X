@@ -4,3 +4,10 @@ Fluent:Notify({
    SubContent = "", -- Optional
    Duration = 15
 })
+
+Fluent:Notify({
+   Title = "Aerave Message's [2]",
+   Content = "Did you know? Unknown Hub X was renamed to Draconic Hub X?",
+   SubContent = "", -- Optional
+   Duration = 15
+})
