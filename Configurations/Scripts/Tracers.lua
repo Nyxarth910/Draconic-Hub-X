@@ -36,6 +36,11 @@ function UpdateTracerESP(tracerTable, part, color)
 end
 
 function DestroyTracerESP(tracerTable, part)
+  if typeof(part) ~= "Instance" then
+    tracerTable[part] = nil
+    return
+  end
+  
   local tracer = tracerTable[part]
   if tracer then 
     if tracer.Remove then tracer.Remove() end
