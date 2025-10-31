@@ -12,8 +12,13 @@ end
 function UpdateTracerESP(tracerTable, part, color)
   local tracer = tracerTable[part]
   if not tracer then return end
+
+  if typeof(part) ~= "Instance" then
+    tracerTable[part] = nil
+    return
+  end
   
-  if not typeof(part) == "Instance" or not part.Parent or not part:IsDescendantOf(workspace) then
+  if not part.Parent or not part:IsDescendantOf(workspace) then
     tracer.Visible = false
     DestroyTracerESP(tracerTable, part)
     return
