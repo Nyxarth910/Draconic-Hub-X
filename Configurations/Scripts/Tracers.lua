@@ -12,8 +12,10 @@ end
 function UpdateTracerESP(tracerTable, part, color)
   local tracer = tracerTable[part]
   if not tracer then return end
-  if not part or not part.Parent then
+  
+  if not typeof(part) == "Instance" or not part.Parent then
     tracer.Visible = false
+    DestroyTracerESP(tracerTable, part)
     return
   end
 
@@ -33,6 +35,5 @@ function DestroyTracerESP (tracerTable, part)
   if tracer then 
     if tracer.Remove then tracer.Remove() end
     tracerTable[part] = nil
-  end
-  
+  end 
 end
