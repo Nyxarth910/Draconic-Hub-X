@@ -30,7 +30,7 @@ function UpdateTracerESP(tracerTable, part, color)
   end
 end
 
-function DestroyTracerESP (tracerTable, part)
+function DestroyTracerESP(tracerTable, part)
   local tracer = tracerTable[part]
   if tracer then 
     if tracer.Remove then tracer.Remove() end
