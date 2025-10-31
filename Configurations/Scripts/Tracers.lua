@@ -43,7 +43,7 @@ function DestroyTracerESP(tracerTable, part)
   
   local tracer = tracerTable[part]
   if tracer then 
-    if tracer.Remove then tracer.Remove() end
+    if tracer.Remove then tracer:Remove() end
     tracerTable[part] = nil
   end 
 end
