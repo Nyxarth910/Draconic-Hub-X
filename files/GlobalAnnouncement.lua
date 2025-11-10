@@ -1,6 +1,5 @@
-Fluent:Notify({
-   Title = "Aerave Message's",
-   Content = "Did you know? Keyless Mode Activates every Saturday to Monday?",
-   SubContent = "", -- Optional
-   Duration = 15
-})
+local msg = Instance.new("Message", workspace)
+msg.Text = "Nyxarth910 Message: Keyless mode ends on November 30"
+task.delay(10, function()
+  msg:Destroy()
+end)
