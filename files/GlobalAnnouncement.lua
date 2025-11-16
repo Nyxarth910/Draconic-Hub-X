@@ -1,6 +1,6 @@
 Fluent:Notify({
    Title = "Aerave Message's",
-   Content = "oi im not dead yet >:(, im just tired",
-   SubContent = "Also my discord account was hacked", -- Optional
+   Content = "what should i announce tho? :thinking_cat:",
+   SubContent = "", -- Optional
    Duration = 15
 })
