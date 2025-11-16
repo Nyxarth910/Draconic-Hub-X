@@ -1,6 +1,6 @@
 Fluent:Notify({
    Title = "Aerave Message's",
-   Content = "Sorry for removing the visual ;-;",
+   Content = "oi im not dead yet >:(, im just tired",
    SubContent = "", -- Optional
    Duration = 15
 })
