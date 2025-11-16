@@ -1,5 +1,6 @@
-local msg = Instance.new("Message", workspace)
-msg.Text = "Nyxarth910 Message: Keyless mode ends on November 30"
-task.delay(10, function()
-  msg:Destroy()
-end)
+Fluent:Notify({
+   Title = "Aerave Message's",
+   Content = "Sorry for removing the visual ;-;",
+   SubContent = "", -- Optional
+   Duration = 15
+})
