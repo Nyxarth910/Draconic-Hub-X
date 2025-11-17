@@ -1,6 +1,6 @@
 Fluent:Notify({
    Title = "Aerave Message's",
-   Content = "what should i announce tho? :thinking_cat:",
+   Content = ":thinking_pufferfish:",
    SubContent = "", -- Optional
    Duration = 15
 })
