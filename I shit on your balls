@@ -1,3 +1,58 @@
+-- FIXED VERSION - Check if Localization exists
+if Localization then
+    local originalResolve
+    if Localization.Resolve then
+        originalResolve = Localization.Resolve
+    end
+
+    function Localization:Resolve(value)
+        if not self.Enabled then
+            return value
+        end
+        
+        if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
+            local key = value:sub(#self.Prefix + 1)
+            local lang = self.Translations[self.DefaultLanguage]
+            if lang and lang[key] then
+                return lang[key]
+            end
+        end
+        
+        return value
+    end
+
+    local originalCreateWindow = WindUI.CreateWindow
+    WindUI.CreateWindow = function(self, config)
+        if config then
+            for key, value in pairs(config) do
+                if type(value) == "string" then
+                    config[key] = Localization:Resolve(value)
+                end
+            end
+        end
+        
+        return originalCreateWindow(self, config)
+    end
+
+    local function resolveWindowProperties(window)
+        if window and window.Title and type(window.Title) == "string" then
+            window.Title = Localization:Resolve(window.Title)
+        end
+        if window and window.Author and type(window.Author) == "string" then
+            window.Author = Localization:Resolve(window.Author)
+        end
+    end
+
+    resolveWindowProperties(Window)
+else
+    warn("Localization is nil! Skipping auto-resolve.")
+end
+
+print("Window Title:", Window and Window.Title or "N/A")
+print("Window Author:", Window and Window.Author or "N/A")
+
+-- Rest of your webhook code...
+
 -- Check if both WindUI and Localization exist
 if WindUI and Localization then
     local originalResolve
