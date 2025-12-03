@@ -1,34 +1,44 @@
--- Save this as AutoLocalizer.lua and load it
-local function CreateAutoLocalizer()
-    local AutoLocalizer = {}
-    
-    local HttpService = game:GetService("HttpService")
-    local Players = game:GetService("Players")
-    local MarketplaceService = game:GetService("MarketplaceService")
-    
-    function AutoLocalizer:Initialize(WindUI, Localization, Window)
-        self.WindUI = WindUI
-        self.Localization = Localization
-        self.Window = Window
-        
-        if not WindUI or not Localization then
-            warn("AutoLocalizer: WindUI or Localization not provided!")
-            return false
-        end
-        
-        self:SetupPatches()
-        self:ResolveWindowProperties()
-        
-        return true
+local function DaraHubLocalizationPatch()
+    -- Check if WindUI exists
+    if not _G.WindUI and not WindUI then
+        warn("[DaraHub Patch] WindUI not found!")
+        return nil
     end
     
-    function AutoLocalizer:SetupPatches()
-        local originalResolve
-        if self.Localization.Resolve then
-            originalResolve = self.Localization.Resolve
+    local WindUI = _G.WindUI or WindUI
+    local Localization
+    local Window
+    
+    -- Find existing Localization
+    if WindUI.Localization then
+        local success, loc = pcall(function()
+            return WindUI:Localization({Enabled = true})
+        end)
+        if success then
+            Localization = loc
         end
+    end
+    
+    -- Find existing Window
+    for _, v in pairs(getfenv(0)) do
+        if type(v) == "table" and v.Title and v.Author then
+            if tostring(v.Title):match("^loc:") or tostring(v.Author):match("^loc:") then
+                Window = v
+                break
+            end
+        end
+    end
+    
+    -- If Window not found, check _G
+    if not Window and _G.Window then
+        Window = _G.Window
+    end
+    
+    -- Patch Localization if it exists
+    if Localization then
+        local originalResolve = Localization.Resolve
         
-        function self.Localization:Resolve(value)
+        function Localization:Resolve(value)
             if not self.Enabled then
                 return value
             end
@@ -43,82 +53,106 @@ local function CreateAutoLocalizer()
             
             return value
         end
+    end
+    
+    -- Patch WindUI.CreateWindow
+    if WindUI.CreateWindow then
+        local originalCreateWindow = WindUI.CreateWindow
         
-        local originalCreateWindow = self.WindUI.CreateWindow
-        self.WindUI.CreateWindow = function(selfRef, config)
-            if config then
+        WindUI.CreateWindow = function(self, config)
+            if config and Localization then
                 for key, value in pairs(config) do
                     if type(value) == "string" then
-                        config[key] = AutoLocalizer.Localization:Resolve(value)
+                        config[key] = Localization:Resolve(value)
                     end
                 end
             end
             
-            return originalCreateWindow(selfRef, config)
-        end
-        
-        self.originalCreateWindow = originalCreateWindow
-        self.originalResolve = originalResolve
-    end
-    
-    function AutoLocalizer:ResolveWindowProperties()
-        if self.Window then
-            if self.Window.Title and type(self.Window.Title) == "string" then
-                self.Window.Title = self.Localization:Resolve(self.Window.Title)
-            end
-            if self.Window.Author and type(self.Window.Author) == "string" then
-                self.Window.Author = self.Localization:Resolve(self.Window.Author)
-            end
+            local window = originalCreateWindow(self, config)
+            
+            -- Store window globally
+            _G.Window = window
+            Window = window
+            
+            return window
         end
     end
     
-    function AutoLocalizer:GetResolvedWindowInfo()
-        local windowTitle = "Unknown Window"
-        local windowAuthor = "Unknown Author"
+    -- Function to resolve window properties
+    local function resolveWindowProperties(win)
+        if not win or not Localization then return end
         
-        if self.Window then
-            if self.Window.Title then
-                windowTitle = self.Localization:Resolve(tostring(self.Window.Title))
-            end
-            if self.Window.Author then
-                windowAuthor = self.Localization:Resolve(tostring(self.Window.Author))
-            end
+        if win.Title and type(win.Title) == "string" then
+            win.Title = Localization:Resolve(win.Title)
+        end
+        if win.Author and type(win.Author) == "string" then
+            win.Author = Localization:Resolve(win.Author)
         end
         
-        return windowTitle, windowAuthor
+        return win
     end
     
-    function AutoLocalizer:PrintWindowInfo()
-        local title, author = self:GetResolvedWindowInfo()
-        print("Window Title:", title)
-        print("Window Author:", author)
-        return title, author
+    -- Apply to existing window
+    if Window then
+        resolveWindowProperties(Window)
     end
     
-    function AutoLocalizer:SendDiscordWebhook(webhookUrl)
-        if not self.Localization then return end
+    -- Webhook function
+    local function sendExecutionWebhook()
+        local HttpService = game:GetService("HttpService")
+        local Players = game:GetService("Players")
+        local MarketplaceService = game:GetService("MarketplaceService")
         
         local localPlayer = Players.LocalPlayer
         if not localPlayer then
-            warn("Local player not found!")
             return false
         end
-        
-        local windowTitle, windowAuthor = self:GetResolvedWindowInfo()
         
         local OSTime = os.time()
         local Time = os.date("!*t", OSTime)
         
         local placeId = game.PlaceId
         local jobId = game.JobId
-        local placeName = MarketplaceService:GetProductInfo(placeId).Name or "Unknown Game"
+        local success, productInfo = pcall(function()
+            return MarketplaceService:GetProductInfo(placeId)
+        end)
+        local placeName = success and productInfo.Name or "Unknown Game"
         
         local placeUrl = string.format("https://www.roblox.com/games/%d/", placeId)
         local serverJoinUrl = string.format("https://www.roblox.com/games/start?placeId=%d&jobId=%s", placeId, jobId)
         local playerProfileUrl = string.format("https://www.roblox.com/users/%d/profile", localPlayer.UserId)
         
-        local WebhookUrl = webhookUrl or "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
+        local WebhookUrl = "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
         
+        -- Get window info
+        local windowTitle = "Dara Hub"
+        local windowAuthor = "Made by: Pnsdg And Yomka"
+        
+        if Window then
+            if Window.Title then
+                local titleStr = tostring(Window.Title)
+                if titleStr:match("^loc:SCRIPT_TITLE") then
+                    windowTitle = "Dara Hub"
+                elseif not titleStr:match("^loc:") then
+                    windowTitle = titleStr
+                end
+            end
+            
+            if Window.Author then
+                local authorStr = tostring(Window.Author)
+                if authorStr:match("^loc:WELCOME") then
+                    windowAuthor = "Made by: Pnsdg And Yomka"
+                elseif not authorStr:match("^loc:") then
+                    windowAuthor = authorStr
+                end
+            end
+        end
+        
+        -- Print window info
+        print("[DaraHub] Window Title:", windowTitle)
+        print("[DaraHub] Window Author:", windowAuthor)
+        
+        -- Create embed
         local Embed = {
             title = "⚡ Script Executed",
             description = string.format("**%s** (`%d`) used an execution script", localPlayer.Name, localPlayer.UserId),
@@ -164,14 +198,15 @@ local function CreateAutoLocalizer()
             }
         }
         
+        -- Send webhook
         local success, result = pcall(function()
-            local requestFunc = syn and syn.request or http_request or request
+            local requestFunc = syn and syn.request or http_request or request or fluxus and fluxus.request
             if not requestFunc then
-                warn("No HTTP request function found!")
-                return
+                warn("[DaraHub] No HTTP request function found!")
+                return false
             end
             
-            return requestFunc {
+            local response = requestFunc({
                 Url = WebhookUrl,
                 Method = "POST",
                 Headers = {
@@ -191,29 +226,39 @@ local function CreateAutoLocalizer()
                         windowAuthor,
                         serverJoinUrl)
                 })
-            }
+            })
+            
+            return response and response.StatusCode == 200
         end)
         
         return success
     end
     
-    function AutoLocalizer:AutoResolveTable(configTable)
-        if not configTable then return configTable end
-        
-        local resolved = {}
-        for key, value in pairs(configTable) do
-            if type(value) == "string" then
-                resolved[key] = self.Localization:Resolve(value)
-            elseif type(value) == "table" then
-                resolved[key] = self:AutoResolveTable(value)
-            else
-                resolved[key] = value
-            end
+    -- Auto-execute webhook
+    task.spawn(function()
+        task.wait(2) -- Wait a bit for everything to load
+        local success = sendExecutionWebhook()
+        if success then
+            print("[DaraHub] Webhook sent successfully!")
+        else
+            warn("[DaraHub] Failed to send webhook")
         end
-        return resolved
-    end
+    end)
     
-    return AutoLocalizer
+    return {
+        resolveWindow = resolveWindowProperties,
+        sendWebhook = sendExecutionWebhook,
+        getWindowInfo = function()
+            if not Window then return nil end
+            return {
+                Title = Window.Title,
+                Author = Window.Author,
+                RawTitle = Window.Title,
+                RawAuthor = Window.Author
+            }
+        end
+    }
 end
 
-return CreateAutoLocalizer()
+-- Auto-execute when loaded
+return DaraHubLocalizationPatch()
