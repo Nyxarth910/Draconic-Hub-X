@@ -190,4 +190,56 @@ function LocalizationPatcher.sendWebhook(webhookUrl, window, Localization)
     return success
 end
 
+-- Auto-patch function that works retroactively
+function LocalizationPatcher.autoPatchAll(Localization, WindUI, Window)
+    -- Patch the Localization resolve method
+    local originalResolve
+    if Localization.Resolve then
+        originalResolve = Localization.Resolve
+    end
+
+    function Localization:Resolve(value)
+        if not self.Enabled then
+            return value
+        end
+        
+        if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
+            local key = value:sub(#self.Prefix + 1)
+            local lang = self.Translations[self.DefaultLanguage]
+            if lang and lang[key] then
+                return lang[key]
+            end
+        end
+        
+        return value
+    end
+
+    -- Patch WindUI.CreateWindow for future windows
+    local originalCreateWindow = WindUI.CreateWindow
+    WindUI.CreateWindow = function(self, config)
+        if config then
+            for key, value in pairs(config) do
+                if type(value) == "string" then
+                    config[key] = Localization:Resolve(value)
+                end
+            end
+        end
+        
+        return originalCreateWindow(self, config)
+    end
+
+    -- If Window already exists, patch it retroactively
+    if Window then
+        LocalizationPatcher.resolveWindowProperties(Window, Localization)
+    end
+
+    return {
+        Localization = Localization,
+        WindUI = WindUI,
+        Window = Window,
+        originalResolve = originalResolve,
+        originalCreateWindow = originalCreateWindow
+    }
+end
+
 return LocalizationPatcher
