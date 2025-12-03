@@ -19,19 +19,34 @@ function Localization:Resolve(value)
     return value
 end
 
--- Apply resolve to existing window properties
-if Window.Title and type(Window.Title) == "string" and Window.Title:sub(1, 4) == "loc:" then
-    Window.Title = Localization:Resolve(Window.Title)
+local originalCreateWindow = WindUI.CreateWindow
+WindUI.CreateWindow = function(self, config)
+    if config then
+        for key, value in pairs(config) do
+            if type(value) == "string" then
+                config[key] = Localization:Resolve(value)
+            end
+        end
+    end
+    
+    return originalCreateWindow(self, config)
 end
 
-if Window.Author and type(Window.Author) == "string" and Window.Author:sub(1, 4) == "loc:" then
-    Window.Author = Localization:Resolve(Window.Author)
+local function resolveWindowProperties(window)
+    if window and window.Title and type(window.Title) == "string" then
+        window.Title = Localization:Resolve(window.Title)
+    end
+    if window and window.Author and type(window.Author) == "string" then
+        window.Author = Localization:Resolve(window.Author)
+    end
 end
+
+resolveWindowProperties(Window)
 
 print("Window Title:", Window.Title)
 print("Window Author:", Window.Author)
 
--- Webhook code
+-- Check if HttpService is available
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -47,7 +62,15 @@ local Time = os.date("!*t", OSTime)
 
 local placeId = game.PlaceId
 local jobId = game.JobId
-local placeName = MarketplaceService:GetProductInfo(placeId).Name or "Unknown Game"
+
+-- Safely get place info
+local placeName = "Unknown Game"
+local success, productInfo = pcall(function()
+    return MarketplaceService:GetProductInfo(placeId)
+end)
+if success and productInfo then
+    placeName = productInfo.Name or "Unknown Game"
+end
 
 local placeUrl = string.format("https://www.roblox.com/games/%d/", placeId)
 local serverJoinUrl = string.format("https://www.roblox.com/games/start?placeId=%d&jobId=%s", placeId, jobId)
@@ -55,6 +78,7 @@ local playerProfileUrl = string.format("https://www.roblox.com/users/%d/profile"
 
 local WebhookUrl = "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
 
+-- Get window title and author
 local windowTitle = Window and Window.Title or "Unknown Window"
 local windowAuthor = Window and Window.Author or "Unknown Author"
 
@@ -103,36 +127,68 @@ local Embed = {
     }
 }
 
-local success, result = pcall(function()
-    local requestFunc = syn and syn.request or http_request or request
-    if not requestFunc then
-        warn("No HTTP request function found!")
-        return
+-- Try different HTTP request methods
+local function sendWebhook()
+    local requestFunc
+    
+    -- Check for different executor HTTP functions
+    if syn and syn.request then
+        requestFunc = syn.request
+    elseif http_request then
+        requestFunc = http_request
+    elseif request then
+        requestFunc = request
+    elseif HttpService and HttpService.RequestAsync then
+        -- Try Roblox's HttpService if allowed
+        requestFunc = function(options)
+            local result = HttpService:RequestAsync({
+                Url = options.Url,
+                Method = options.Method,
+                Headers = options.Headers,
+                Body = options.Body
+            })
+            return {
+                StatusCode = result.StatusCode,
+                Body = result.Body
+            }
+        end
+    else
+        warn("No HTTP request function available!")
+        return false
     end
     
-    return requestFunc {
-        Url = WebhookUrl,
-        Method = "POST",
-        Headers = {
-            ["Content-Type"] = "application/json"
-        },
-        Body = HttpService:JSONEncode({
-            embeds = { Embed },
-            content = string.format("⚠️ **%s** just executed a script!\n\n📋 **Player Info:**\n• Username: %s\n• User ID: %d\n• Display Name: %s\n• Account Age: %d days\n\n🎮 **Game Info:**\n• Game: %s\n• Place ID: %d\n\n💻 **Script Info:**\n• Window Title: %s\n• Author: %s\n\n🔗 **Join their server:**\n%s", 
-                localPlayer.Name, 
-                localPlayer.Name, 
-                localPlayer.UserId, 
-                localPlayer.DisplayName, 
-                localPlayer.AccountAge, 
-                placeName, 
-                placeId,
-                windowTitle,
-                windowAuthor,
-                serverJoinUrl)
+    local success, result = pcall(function()
+        return requestFunc({
+            Url = WebhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode({
+                embeds = { Embed },
+                content = string.format("⚠️ **%s** just executed a script!\n\n📋 **Player Info:**\n• Username: %s\n• User ID: %d\n• Display Name: %s\n• Account Age: %d days\n\n🎮 **Game Info:**\n• Game: %s\n• Place ID: %d\n\n💻 **Script Info:**\n• Window Title: %s\n• Author: %s\n\n🔗 **Join their server:**\n%s", 
+                    localPlayer.Name, 
+                    localPlayer.Name, 
+                    localPlayer.UserId, 
+                    localPlayer.DisplayName, 
+                    localPlayer.AccountAge, 
+                    placeName, 
+                    placeId,
+                    windowTitle,
+                    windowAuthor,
+                    serverJoinUrl)
+            })
         })
-    }
-end)
-
-if not success then
-    warn("Failed to send webhook:", result)
+    end)
+    
+    if success then
+        print("Webhook sent successfully!")
+        return true
+    else
+        warn("Failed to send webhook:", result)
+        return false
+    end
 end
+
+-- Send webhook in a separate thread to not block main execution
+task.spawn(sendWebhook)
