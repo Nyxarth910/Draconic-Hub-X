@@ -1,60 +1,63 @@
--- Main localization and webhook module
 local Module = {}
 
--- Localization System
-local originalResolve
-if Localization and Localization.Resolve then
-    originalResolve = Localization.Resolve
-end
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
 
-function Localization:Resolve(value)
-    if not self.Enabled then
-        return value
+function Module.Init()
+    -- Localization system
+    local originalResolve
+    if Localization.Resolve then
+        originalResolve = Localization.Resolve
     end
-    
-    if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
-        local key = value:sub(#self.Prefix + 1)
-        local lang = self.Translations[self.DefaultLanguage]
-        if lang and lang[key] then
-            return lang[key]
+
+    function Localization:Resolve(value)
+        if not self.Enabled then
+            return value
         end
-    end
-    
-    return value
-end
-
--- Override WindUI.CreateWindow for automatic localization
-local originalCreateWindow = WindUI.CreateWindow
-WindUI.CreateWindow = function(self, config)
-    if config then
-        for key, value in pairs(config) do
-            if type(value) == "string" then
-                config[key] = Localization:Resolve(value)
+        
+        if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
+            local key = value:sub(#self.Prefix + 1)
+            local lang = self.Translations[self.DefaultLanguage]
+            if lang and lang[key] then
+                return lang[key]
             end
         end
+        
+        return value
     end
-    
-    return originalCreateWindow(self, config)
+
+    -- WindUI hook
+    local originalCreateWindow = WindUI.CreateWindow
+    WindUI.CreateWindow = function(self, config)
+        if config then
+            for key, value in pairs(config) do
+                if type(value) == "string" then
+                    config[key] = Localization:Resolve(value)
+                end
+            end
+        end
+        
+        return originalCreateWindow(self, config)
+    end
+
+    -- Window property resolver
+    local function resolveWindowProperties(window)
+        if window and window.Title and type(window.Title) == "string" then
+            window.Title = Localization:Resolve(window.Title)
+        end
+        if window and window.Author and type(window.Author) == "string" then
+            window.Author = Localization:Resolve(window.Author)
+        end
+    end
+
+    resolveWindowProperties(Window)
+
+    print("Window Title:", Window.Title)
+    print("Window Author:", Window.Author)
 end
 
--- Resolve window properties
-local function resolveWindowProperties(window)
-    if window and window.Title and type(window.Title) == "string" then
-        window.Title = Localization:Resolve(window.Title)
-    end
-    if window and window.Author and type(window.Author) == "string" then
-        window.Author = Localization:Resolve(window.Author)
-    end
-end
-
-resolveWindowProperties(Window)
-
--- Webhook Notification System
-Module.SendWebhook = function()
-    local HttpService = game:GetService("HttpService")
-    local Players = game:GetService("Players")
-    local MarketplaceService = game:GetService("MarketplaceService")
-
+function Module.SendWebhook()
     local localPlayer = Players.LocalPlayer
     if not localPlayer then
         warn("Local player not found!")
@@ -74,7 +77,7 @@ Module.SendWebhook = function()
 
     local WebhookUrl = "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
 
-    -- Get window title and author
+    -- Get window title and author (resolved from your code)
     local windowTitle = Window and Window.Title or "Unknown Window"
     local windowAuthor = Window and Window.Author or "Unknown Author"
 
@@ -155,19 +158,12 @@ Module.SendWebhook = function()
         return response
     end)
     
-    return success
+    return success, result
 end
 
--- Initialize function
-Module.Init = function()
-    print("Window Title:", Window.Title)
-    print("Window Author:", Window.Author)
-    
-    -- Auto-send webhook (optional - you can comment this out if you want manual control)
-    Module.SendWebhook()
-    
-    return Module
-end
+-- Auto-execute on load
+Module.Init()
+task.wait(1) -- Small delay to ensure everything is loaded
+Module.SendWebhook()
 
--- Return the module
-return Module.Init()
+return Module
