@@ -1,6 +1,10 @@
 local LocalizationPatcher = {}
 
-function LocalizationPatcher.init(Localization, WindUI)
+function LocalizationPatcher.autoPatchAll(Localization, WindUI, Window)
+    if not Localization or not WindUI then
+        error("Localization and WindUI are required")
+    end
+    
     local originalResolve
     if Localization.Resolve then
         originalResolve = Localization.Resolve
@@ -35,29 +39,29 @@ function LocalizationPatcher.init(Localization, WindUI)
         return originalCreateWindow(self, config)
     end
 
+    if Window then
+        if Window.Title and type(Window.Title) == "string" then
+            Window.Title = Localization:Resolve(Window.Title)
+        end
+        if Window.Author and type(Window.Author) == "string" then
+            Window.Author = Localization:Resolve(Window.Author)
+        end
+    end
+
     return {
         Localization = Localization,
         WindUI = WindUI,
+        Window = Window,
         originalResolve = originalResolve,
         originalCreateWindow = originalCreateWindow
     }
-end
-
-function LocalizationPatcher.resolveWindowProperties(window, Localization)
-    if window and window.Title and type(window.Title) == "string" then
-        window.Title = Localization:Resolve(window.Title)
-    end
-    if window and window.Author and type(window.Author) == "string" then
-        window.Author = Localization:Resolve(window.Author)
-    end
-    return window
 end
 
 function LocalizationPatcher.getResolvedWindowInfo(window, Localization)
     local windowTitle = "Dara Hub"
     local windowAuthor = "Made by: Pnsdg And Yomka"
     
-    if window then
+    if window and Localization then
         if window.Title then
             local titleStr = tostring(window.Title)
             if titleStr:sub(1, 4) == "loc:" then
@@ -190,56 +194,16 @@ function LocalizationPatcher.sendWebhook(webhookUrl, window, Localization)
     return success
 end
 
--- Auto-patch function that works retroactively
-function LocalizationPatcher.autoPatchAll(Localization, WindUI, Window)
-    -- Patch the Localization resolve method
-    local originalResolve
-    if Localization.Resolve then
-        originalResolve = Localization.Resolve
-    end
-
-    function Localization:Resolve(value)
-        if not self.Enabled then
-            return value
+-- Self-executing function when module is loaded via loadstring
+local function main(...)
+    -- Check if we're being called with parameters (from another loadstring)
+    if select('#', ...) > 0 then
+        local args = {...}
+        if #args >= 3 then
+            return LocalizationPatcher.autoPatchAll(args[1], args[2], args[3])
         end
-        
-        if type(value) == "string" and value:sub(1, #self.Prefix) == self.Prefix then
-            local key = value:sub(#self.Prefix + 1)
-            local lang = self.Translations[self.DefaultLanguage]
-            if lang and lang[key] then
-                return lang[key]
-            end
-        end
-        
-        return value
     end
-
-    -- Patch WindUI.CreateWindow for future windows
-    local originalCreateWindow = WindUI.CreateWindow
-    WindUI.CreateWindow = function(self, config)
-        if config then
-            for key, value in pairs(config) do
-                if type(value) == "string" then
-                    config[key] = Localization:Resolve(value)
-                end
-            end
-        end
-        
-        return originalCreateWindow(self, config)
-    end
-
-    -- If Window already exists, patch it retroactively
-    if Window then
-        LocalizationPatcher.resolveWindowProperties(Window, Localization)
-    end
-
-    return {
-        Localization = Localization,
-        WindUI = WindUI,
-        Window = Window,
-        originalResolve = originalResolve,
-        originalCreateWindow = originalCreateWindow
-    }
+    return LocalizationPatcher
 end
 
-return LocalizationPatcher
+return main(...)
