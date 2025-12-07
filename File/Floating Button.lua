@@ -1,19 +1,26 @@
+local module = {}
+
 local Minimized = false
 local Window
 local FloatButton
-local gui, button, topImage
-
-local module = {}
+local gui, button, topImage, backgroundImage
+local audioDownloaded = false
 
 local function downloadAudio()
+    if audioDownloaded and isfile("bruh.mp3") then
+        return true
+    end
+    
     local audioUrl = "https://github.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/raw/refs/heads/main/File/audio/Bruh%20sound%20effect_256k.mp3"
     local request = http_request or (syn and syn.request) or request
+    
     local success, response = pcall(function()
         return request({Url = audioUrl, Method = "GET"})
     end)
     
-    if success and response and response.Body then
+    if success and response and response.Body and #response.Body > 1000 then
         writefile("bruh.mp3", response.Body)
+        audioDownloaded = true
         return true
     else
         warn("Failed to download audio")
@@ -22,45 +29,63 @@ local function downloadAudio()
 end
 
 local function playAudio()
-    if isfile("bruh.mp3") then
-        local sound = Instance.new("Sound")
-        sound.SoundId = getcustomasset("bruh.mp3")
-        sound.Parent = game:GetService("SoundService")
-        
-        sound.Ended:Connect(function()
-            sound:Destroy()
-        end)
-        
-        local success, errorMsg = pcall(function()
-            sound:Play()
-        end)
-        
-        if not success then
-            warn("Failed to play sound:", errorMsg)
-            sound:Destroy()
+    if not isfile("bruh.mp3") then
+        if not downloadAudio() then
+            warn("Audio file not found and download failed!")
+            return nil
         end
-        return sound
-    else
-        warn("Audio file not found!")
+    end
+    
+    local sound = Instance.new("Sound")
+    sound.SoundId = getcustomasset("bruh.mp3")
+    sound.Volume = 1
+    sound.Parent = game:GetService("SoundService")
+    
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+    
+    local success, errorMsg = pcall(function()
+        sound:Play()
+    end)
+    
+    if not success then
+        warn("Failed to play sound:", errorMsg)
+        sound:Destroy()
         return nil
     end
+    
+    return sound
 end
 
 local function ToggleMinimize()
     if Window then
         Window:Minimize()
         Minimized = true
+        return true
     end
+    return false
 end
 
 function module.init(fluentWindow)
+    if gui and gui.Parent then
+        warn("Floating button already initialized!")
+        return module
+    end
+    
     Window = fluentWindow
     
     downloadAudio()
     
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
-    local playerGui = player:WaitForChild("PlayerGui")
+    local playerGui
+    if player then
+        playerGui = player:WaitForChild("PlayerGui")
+    else
+        warn("Player not found!")
+        return module
+    end
     
     gui = Instance.new("ScreenGui")
     gui.Name = "FloatingButtonGUI"
@@ -88,15 +113,17 @@ function module.init(fluentWindow)
     FloatButton = topImage
     
     FloatButton.MouseButton1Click:Connect(function()
-        ToggleMinimize()
-        playAudio()
+        local minimized = ToggleMinimize()
+        if minimized then
+            playAudio()
+        end
     end)
     
     if Window then
         Window.MinimizeToggle = ToggleMinimize
     end
     
-    local backgroundImage = Instance.new("ImageLabel")
+    backgroundImage = Instance.new("ImageLabel")
     backgroundImage.Name = "SpinningBackground"
     backgroundImage.Size = UDim2.new(1, 0, 1, 0)
     backgroundImage.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -150,10 +177,18 @@ function module.init(fluentWindow)
     end)
     
     local RunService = game:GetService("RunService")
-    RunService.RenderStepped:Connect(function(deltaTime)
-        backgroundImage.Rotation = (backgroundImage.Rotation + (100 * deltaTime)) % 360
+    local connection
+    connection = RunService.RenderStepped:Connect(function(deltaTime)
+        if backgroundImage and backgroundImage.Parent then
+            backgroundImage.Rotation = (backgroundImage.Rotation + (100 * deltaTime)) % 360
+        else
+            if connection then
+                connection:Disconnect()
+            end
+        end
     end)
     
+    print("Floating button initialized successfully!")
     return module
 end
 
@@ -162,11 +197,20 @@ function module.destroy()
         gui:Destroy()
         gui = nil
     end
+    button = nil
+    topImage = nil
+    backgroundImage = nil
+    FloatButton = nil
     print("Floating button destroyed")
+    return true
 end
 
 function module.getButton()
     return button
+end
+
+function module.getGUI()
+    return gui
 end
 
 function module.isMinimized()
@@ -175,6 +219,25 @@ end
 
 function module.playSound()
     return playAudio()
+end
+
+function module.toggleMinimize()
+    return ToggleMinimize()
+end
+
+function module.setWindowPosition(x, y)
+    if button then
+        button.Position = UDim2.new(x, 0, y, 0)
+        return true
+    end
+    return false
+end
+
+function module.getWindowPosition()
+    if button then
+        return button.Position
+    end
+    return nil
 end
 
 return module
