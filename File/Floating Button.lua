@@ -1,3 +1,8 @@
+local audioUrl = "https://github.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/raw/refs/heads/main/File/audio/Bruh%20sound%20effect_256k.mp3"--idk what sounds should use lol
+local request = http_request or (syn and syn.request) or request
+local response = request({Url = audioUrl, Method = "GET"})
+writefile("bruh.mp3", response.Body)
+
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -24,6 +29,31 @@ topImage.Image = "rbxassetid://108180785726591"
 topImage.ZIndex = 2
 topImage.Parent = button
 topImage.Draggable = true
+
+topImage.MouseButton1Click:Connect(function()
+    
+    if not isfile("bruh.mp3") then
+        warn("Audio file not found!")
+        return
+    end
+    
+    local sound = Instance.new("Sound")
+    sound.SoundId = getcustomasset("bruh.mp3")
+    sound.Parent = game:GetService("SoundService")
+    
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+    
+    local success, errorMsg = pcall(function()
+        sound:Play()
+    end)
+    
+    if not success then
+        warn("Failed to play sound:", errorMsg)
+        sound:Destroy()
+    end
+end)
 
 local backgroundImage = Instance.new("ImageLabel")
 backgroundImage.Name = "SpinningBackground"
@@ -81,16 +111,4 @@ end)
 local RunService = game:GetService("RunService")
 RunService.RenderStepped:Connect(function(deltaTime)
 	backgroundImage.Rotation = (backgroundImage.Rotation + (100 * deltaTime)) % 360
-end)
-
-topImage.MouseButton1Click:Connect(function()
-	print("Round button clicked!")
-	local audioUrl = "https://github.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/raw/refs/heads/main/File/audio/Bruh%20sound%20effect_256k.mp3"
-local request = http_request or (syn and syn.request) or request
-local response = request({Url = audioUrl, Method = "GET"})
-writefile("bruh.mp3", response.Body)
-local sound = Instance.new("Sound")
-sound.SoundId = getcustomasset("bruh.mp3")
-sound.Parent = game:GetService("SoundService")
-sound:Play()
 end)
