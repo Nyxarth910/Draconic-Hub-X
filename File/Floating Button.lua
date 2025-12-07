@@ -1,7 +1,17 @@
-local audioUrl = "https://github.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/raw/refs/heads/main/File/audio/Bruh%20sound%20effect_256k.mp3"--idk what sounds should use lol
-local request = http_request or (syn and syn.request) or request
-local response = request({Url = audioUrl, Method = "GET"})
-writefile("bruh.mp3", response.Body)
+local Minimized = false
+
+local function ToggleMinimize()
+    Window:Minimize()
+    Minimized = true
+end
+
+local FloatButton
+
+
+   local audioUrl = "https://github.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/raw/refs/heads/main/File/audio/Bruh%20sound%20effect_256k.mp3"
+    local request = http_request or (syn and syn.request) or request
+    local response = request({Url = audioUrl, Method = "GET"})
+    writefile("bruh.mp3", response.Body)
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -30,30 +40,36 @@ topImage.ZIndex = 2
 topImage.Parent = button
 topImage.Draggable = true
 
-topImage.MouseButton1Click:Connect(function()
+FloatButton = topImage
+
+FloatButton.MouseButton1Click:Connect(function()
+    ToggleMinimize()
     
-    if not isfile("bruh.mp3") then
+    if isfile("bruh.mp3") then
+        local sound = Instance.new("Sound")
+        sound.SoundId = getcustomasset("bruh.mp3")
+        sound.Parent = game:GetService("SoundService")
+        
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+        
+        local success, errorMsg = pcall(function()
+            sound:Play()
+        end)
+        
+        if not success then
+            warn("Failed to play sound:", errorMsg)
+            sound:Destroy()
+        end
+    else
         warn("Audio file not found!")
-        return
-    end
-    
-    local sound = Instance.new("Sound")
-    sound.SoundId = getcustomasset("bruh.mp3")
-    sound.Parent = game:GetService("SoundService")
-    
-    sound.Ended:Connect(function()
-        sound:Destroy()
-    end)
-    
-    local success, errorMsg = pcall(function()
-        sound:Play()
-    end)
-    
-    if not success then
-        warn("Failed to play sound:", errorMsg)
-        sound:Destroy()
     end
 end)
+
+Window.MinimizeToggle = function()
+    ToggleMinimize()
+end
 
 local backgroundImage = Instance.new("ImageLabel")
 backgroundImage.Name = "SpinningBackground"
@@ -64,7 +80,7 @@ backgroundImage.BackgroundTransparency = 1
 backgroundImage.Image = "rbxassetid://88077369114691"
 backgroundImage.ZIndex = 1
 backgroundImage.Parent = topImage
-backgroundImage.Interactable = false 
+backgroundImage.Interactable = false
 
 local backgroundScale = Instance.new("UIScale")
 backgroundScale.Scale = 2
@@ -112,3 +128,4 @@ local RunService = game:GetService("RunService")
 RunService.RenderStepped:Connect(function(deltaTime)
 	backgroundImage.Rotation = (backgroundImage.Rotation + (100 * deltaTime)) % 360
 end)
+
