@@ -642,45 +642,45 @@ end
 -- ==================== FLUENT UI SECTIONS ====================
 
 -- Billboard ESP Section
-local billboardSection = Tabs.Main:AddSection("Billboard ESP")
+ billboardSection = Tabs.Main:AddSection("Billboard ESP")
 
-local NextbotToggle = Tabs.Main:AddToggle("NextbotToggle", {
+ NextbotToggle = Tabs.Main:AddToggle("NextbotToggle", {
     Title = "Nextbots",
     Default = false
 })
 
-local PlayerToggle = Tabs.Main:AddToggle("PlayerToggle", {
+ PlayerToggle = Tabs.Main:AddToggle("PlayerToggle", {
     Title = "Players",
     Default = false
 })
 
-local TicketToggle = Tabs.Main:AddToggle("TicketToggle", {
+ TicketToggle = Tabs.Main:AddToggle("TicketToggle", {
     Title = "Tickets",
     Default = false
 })
 
 -- Tracer ESP Section
-local tracerSection = Tabs.Main:AddSection("Tracer ESP")
+ tracerSection = Tabs.Main:AddSection("Tracer ESP")
 
-local TracerPlayerToggle = Tabs.Main:AddToggle("TracerPlayerToggle", {
+ TracerPlayerToggle = Tabs.Main:AddToggle("TracerPlayerToggle", {
     Title = "Tracer Players",
     Default = false
 })
 
-local TracerBotToggle = Tabs.Main:AddToggle("TracerBotToggle", {
+ TracerBotToggle = Tabs.Main:AddToggle("TracerBotToggle", {
     Title = "Tracer Bots",
     Default = false
 })
 
 -- Main Modification Section
-local modificationSection = Tabs.Main:AddSection("Main Modification")
+ modificationSection = Tabs.Main:AddSection("Main Modification")
 
-local AutoRespawnToggle = Tabs.Main:AddToggle("AutoRespawnToggle", {
+ AutoRespawnToggle = Tabs.Main:AddToggle("AutoRespawnToggle", {
     Title = "Auto Respawn",
     Default = false
 })
 
-local AutoRespawnTypeDropdown = Tabs.Main:AddDropdown("AutoRespawnTypeDropdown", {
+ AutoRespawnTypeDropdown = Tabs.Main:AddDropdown("AutoRespawnTypeDropdown", {
     Title = "Auto Respawn Type",
     Values = {"Spawnpoint", "Fake Revive"},
     Multi = false,
@@ -694,17 +694,17 @@ Tabs.Main:AddParagraph({
 
 -- New Features Section
 
-local AntiAFKToggle = Tabs.Main:AddToggle("AntiAFKToggle", {
+ AntiAFKToggle = Tabs.Main:AddToggle("AntiAFKToggle", {
     Title = "Anti AFK",
     Default = false
 })
 
-local AutoWhistleToggle = Tabs.Main:AddToggle("AutoWhistleToggle", {
+ AutoWhistleToggle = Tabs.Main:AddToggle("AutoWhistleToggle", {
     Title = "Auto Whistle",
     Default = false
 })
 
-local NoCameraShakeToggle = Tabs.Main:AddToggle("NoCameraShakeToggle", {
+ NoCameraShakeToggle = Tabs.Main:AddToggle("NoCameraShakeToggle", {
     Title = "No Camera Shake",
     Default = false
 })
@@ -817,7 +817,6 @@ end)
 
 AutoRespawnTypeDropdown:OnChanged(function(value)
     SelfReviveMethod = value
-    print("Auto Respawn Type changed to:", value)
 end)
 
 -- New Features Toggle Handlers
@@ -871,12 +870,10 @@ TimerDisplayToggle:OnChanged(function(state)
             local round = ro and ro:FindFirstChild("Round")
             local timer = round and round:FindFirstChild("RoundTimer")
             
-            -- Show/hide the timer based on toggle state
             if timer then
                 timer.Visible = true
             end
             
-            -- Also check for timer container in main interface
             local main = pg:FindFirstChild("MainInterface")
             if main then
                 local container = main:FindFirstChild("TimerContainer")
@@ -891,7 +888,6 @@ TimerDisplayToggle:OnChanged(function(state)
             timerDisplayLoop = nil
         end
         
-        -- Hide the timer when toggled off
         local player = game:GetService("Players").LocalPlayer
         local pg = player.PlayerGui
         
@@ -918,12 +914,12 @@ TimerDisplayToggle:OnChanged(function(state)
 end)
 local billboardSection = Tabs.Main:AddSection("Player Modification")
 -- who needs noclip on evade lol it's not even work 
-local FlyToggle = Tabs.Main:AddToggle("FlyToggle", {
+ FlyToggle = Tabs.Main:AddToggle("FlyToggle", {
     Title = "Fly",
     Default = false
 })
 
-local FlySpeedInput = Tabs.Main:AddInput("FlySpeedInput", {
+ FlySpeedInput = Tabs.Main:AddInput("FlySpeedInput", {
     Title = "Fly Speed",
     Default = "50",
     Placeholder = "Enter speed value",
@@ -932,7 +928,6 @@ local FlySpeedInput = Tabs.Main:AddInput("FlySpeedInput", {
     Callback = function(Value)
         if Value and tonumber(Value) then
             featureStates.FlySpeed = tonumber(Value)
-            print("Fly speed set to:", featureStates.FlySpeed)
         end
     end
 })
@@ -1086,6 +1081,202 @@ end)
 Tabs.Main:AddParagraph({
     Title = "Manual",
     Content = ""
+})
+ function manualRevive()
+    local player = game:GetService("Players").LocalPlayer
+    local character = player.Character
+    if not character then return end
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local isDowned = character:GetAttribute("Downed")
+    
+    if not isDowned then 
+        return 
+    end
+    
+    local SelfReviveMethod = Options.AutoRespawnTypeDropdown and Options.AutoRespawnTypeDropdown.Value or "Spawnpoint"
+    
+    if SelfReviveMethod == "Spawnpoint" then
+        pcall(function()
+            ReplicatedStorage.Events.Player.ChangePlayerMode:FireServer(true)
+        end)
+        
+    elseif SelfReviveMethod == "Fake Revive" then
+        local lastSavedPosition = hrp and hrp.Position
+        
+        if hrp then
+            lastSavedPosition = hrp.Position
+        end
+        
+        task.spawn(function()
+            task.wait(3)
+            local startTime = tick()
+            repeat
+                pcall(function()
+                    ReplicatedStorage:WaitForChild("Events"):WaitForChild("Player"):WaitForChild("ChangePlayerMode"):FireServer(true)
+                end)
+                task.wait(1)
+            until not character:GetAttribute("Downed") or (tick() - startTime > 1)
+            
+            local newCharacter
+            repeat
+                newCharacter = player.Character
+                task.wait()
+            until newCharacter and newCharacter:FindFirstChild("HumanoidRootPart")
+            
+            local newHRP = newCharacter:FindFirstChild("HumanoidRootPart")
+            if lastSavedPosition and newHRP then
+                newHRP.CFrame = CFrame.new(lastSavedPosition)
+                task.wait(0.5)
+                local movedDistance = (newHRP.Position - lastSavedPosition).Magnitude
+                if movedDistance > 1 then
+                    lastSavedPosition = nil
+                end
+            end
+        end)
+    end
+end
+
+ RespawnButton = Tabs.Main:AddButton({
+    Title = "Respawn Button",
+    Callback = function()
+        local CoreGui = game:GetService("CoreGui")
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        
+        local existingScreenGui = CoreGui:FindFirstChild("DraconicRespawnButtonGUI")
+        
+        if existingScreenGui then
+            existingScreenGui:Destroy()
+        else
+            local screenGui = Instance.new("ScreenGui")
+            screenGui.Name = "DraconicRespawnButtonGUI"
+            screenGui.ResetOnSpawn = false
+            screenGui.Parent = CoreGui
+            
+            local function createGradientButton(parent, position, size, text)
+                local button = Instance.new("Frame")
+                button.Name = "GradientBtn"
+                button.BackgroundTransparency = 0.7
+                button.Size = size
+                button.Position = position
+                button.Draggable = true
+                button.Active = true
+                button.Selectable = true
+                button.Parent = parent
+
+                local corner = Instance.new("UICorner")
+                corner.CornerRadius = UDim.new(1, 0)
+                corner.Parent = button
+
+                local gradient = Instance.new("UIGradient")
+                gradient.Color = ColorSequence.new{
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+                }
+                gradient.Rotation = 45
+                gradient.Parent = button
+
+                local stroke = Instance.new("UIStroke")
+                stroke.Color = Color3.fromRGB(120, 0, 0)
+                stroke.Thickness = 2
+                stroke.Parent = button
+
+                local label = Instance.new("TextLabel")
+                label.Text = text
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                label.TextSize = 30
+                label.Font = Enum.Font.GothamMedium
+                label.Parent = button
+
+                local clicker = Instance.new("TextButton")
+                clicker.Size = UDim2.new(1, 0, 1, 0)
+                clicker.BackgroundTransparency = 1
+                clicker.Text = ""
+                clicker.ZIndex = 5
+                clicker.Active = false
+                clicker.Selectable = false
+                clicker.Parent = button
+
+                clicker.MouseButton1Click:Connect(function()
+                    manualRevive()
+                end)
+
+                clicker.MouseEnter:Connect(function()
+                    stroke.Color = Color3.fromRGB(160, 0, 0)
+                end)
+
+                clicker.MouseLeave:Connect(function()
+                    stroke.Color = Color3.fromRGB(120, 0, 0)
+                end)
+
+                return button, clicker, stroke
+            end
+            
+            local buttonSize = 200
+            if Options.RespawnButtonSizeInput and Options.RespawnButtonSizeInput.Value and tonumber(Options.RespawnButtonSizeInput.Value) then
+                buttonSize = tonumber(Options.RespawnButtonSizeInput.Value)
+            end
+            
+            local btnWidth = math.max(150, math.min(buttonSize, 400))
+            local btnHeight = math.max(60, math.min(buttonSize * 0.4, 160))
+            
+            local btn, clicker, stroke = createGradientButton(
+                screenGui,
+                UDim2.new(0.5, -btnWidth/2, 0.5, -btnHeight/2),
+                UDim2.new(0, btnWidth, 0, btnHeight),
+                "RESPAWN"
+            )
+        end
+    end
+})
+
+ RespawnButtonSizeInput = Tabs.Main:AddInput("RespawnButtonSizeInput", {
+    Title = "Button Size",
+    Default = "200",
+    Placeholder = "Enter size (150-400)",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        if Value and tonumber(Value) then
+            local size = tonumber(Value)
+            local CoreGui = game:GetService("CoreGui")
+            local existingScreenGui = CoreGui:FindFirstChild("DraconicRespawnButtonGUI")
+            
+            if existingScreenGui then
+                local button = existingScreenGui:FindFirstChild("GradientBtn")
+                if button then
+                    local newWidth = math.max(150, math.min(size, 400))
+                    local newHeight = math.max(60, math.min(size * 0.4, 160))
+                    button.Size = UDim2.new(0, newWidth, 0, newHeight)
+                end
+            end
+        end
+    end
+})
+ LeaderboardToggle = Tabs.Main:AddButton({
+    Title = "Open Leaderboard",
+    Callback = function()
+        local playerScripts = game:GetService("Players").LocalPlayer.PlayerScripts
+        
+        local ohTable1 = {
+            ["Down"] = true,
+            ["Key"] = "Leaderboard"
+        }
+        
+        playerScripts.Events.temporary_events.UseKeybind:Fire(ohTable1)
+        
+        task.wait(0.1)
+        
+        local ohTable2 = {
+            ["Down"] = false,
+            ["Key"] = "Leaderboard"
+        }
+        
+        playerScripts.Events.temporary_events.UseKeybind:Fire(ohTable2)
+    end
 })
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
