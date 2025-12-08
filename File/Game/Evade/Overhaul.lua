@@ -1,7 +1,6 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-loadstring(game:HttpGet('https://raw.githubusercontent.com/Pnsdgsa/Script-kids/refs/heads/main/Scripthub/Darahub/evade/TimerGUI-NoRepeat'))()
 local Window = Fluent:CreateWindow({
     Title = "Draconic-X-Evade ",
     SubTitle = "Overhaul (Unfinished - B Version) Made by Nyxarth910 and Aerave ",
@@ -1278,6 +1277,932 @@ end
         playerScripts.Events.temporary_events.UseKeybind:Fire(ohTable2)
     end
 })
+if not workspace:FindFirstChild("SecurityPart") then
+    local SecurityPart = Instance.new("Part")
+    SecurityPart.Name = "SecurityPart"
+    SecurityPart.Size = Vector3.new(10, 1, 10)
+    SecurityPart.Position = Vector3.new(5000, 5000, 5000)
+    SecurityPart.Anchored = true
+    SecurityPart.CanCollide = true
+    SecurityPart.Parent = workspace
+end
+
+local AutoTab = Window:AddTab({ Title = "Auto Farm", Icon = "clock" })
+
+AutoTab:AddSection("Farmings")
+
+AutoMoneyFarmToggle = AutoTab:AddToggle("AutoMoneyFarmToggle", {
+    Title = "Auto Farm Money",
+    Default = false
+})
+
+AutoTicketFarmToggle = AutoTab:AddToggle("AutoTicketFarmToggle", {
+    Title = "Auto Farm Tickets",
+    Default = false
+})
+
+AFKFarmToggle = AutoTab:AddToggle("AFKFarmToggle", {
+    Title = "AFK Farm",
+    Default = false
+})
+
+
+AutoTab:AddParagraph({
+    Title = "Teleports",
+})
+
+TeleportObjectiveButton = AutoTab:AddButton({
+    Title = "Teleport to Objective",
+    Callback = function()
+        local objectives = {}
+        
+        local gameFolder = workspace:FindFirstChild("Game")
+        if not gameFolder then return end
+        
+        local mapFolder = gameFolder:FindFirstChild("Map")
+        if not mapFolder then return end
+        
+        local partsFolder = mapFolder:FindFirstChild("Parts")
+        if not partsFolder then return end
+        
+        local objectivesFolder = partsFolder:FindFirstChild("Objectives")
+        if not objectivesFolder then return end
+        
+        for _, obj in pairs(objectivesFolder:GetChildren()) do
+            if obj:IsA("Model") then
+                local primaryPart = obj.PrimaryPart
+                if not primaryPart then
+                    for _, part in pairs(obj:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            primaryPart = part
+                            break
+                        end
+                    end
+                end
+                
+                if primaryPart then
+                    table.insert(objectives, {
+                        Name = obj.Name,
+                        Part = primaryPart,
+                        Position = primaryPart.Position,
+                        Size = primaryPart.Size
+                    })
+                end
+            end
+        end
+        
+        if #objectives == 0 then
+            return
+        end
+        
+        local selectedObjective = objectives[math.random(1, #objectives)]
+        
+        local character = LocalPlayer.Character
+        if not character then return end
+        
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if not humanoidRootPart then return end
+        
+        local teleportPosition = selectedObjective.Position + Vector3.new(0, 5, 0)
+        
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        
+        local ray = workspace:Raycast(teleportPosition, Vector3.new(0, -10, 0), raycastParams)
+        if ray then
+            teleportPosition = ray.Position + Vector3.new(0, 3, 0)
+        end
+        
+        humanoidRootPart.CFrame = CFrame.new(teleportPosition)
+    end
+})
+AutoMoneyFarmConnection = nil
+AutoWinConnection = nil
+AutoTicketFarmConnection = nil
+AutoReviveModule = nil
+
+character = LocalPlayer.Character
+humanoid = character and character:FindFirstChild("Humanoid")
+rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+function startAutoWin()
+    if AutoWinConnection then return end
+    
+    AutoWinConnection = RunService.Heartbeat:Connect(function()
+        local securityPart = workspace:FindFirstChild("SecurityPart")
+        if not securityPart then return end
+        
+        local currentCharacter = LocalPlayer.Character
+        if not currentCharacter then return end
+        
+        local currentRootPart = currentCharacter:FindFirstChild("HumanoidRootPart")
+        if not currentRootPart then return end
+        
+        if not currentCharacter:GetAttribute("Downed") then
+            currentRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+        end
+    end)
+end
+
+function stopAutoWin()
+    if AutoWinConnection then
+        AutoWinConnection:Disconnect()
+        AutoWinConnection = nil
+    end
+end
+
+function initAutoReviveModule()
+    local reviveRange = 10
+    local loopDelay = 0.15
+    local autoReviveEnabled = false
+    local reviveLoopHandle = nil
+    local interactEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Character"):WaitForChild("Interact")
+
+    function isPlayerDowned(pl)
+        if not pl or not pl.Character then return false end
+        local char = pl.Character
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Health <= 0 then
+            return true
+        end
+        if char.GetAttribute and char:GetAttribute("Downed") == true then
+            return true
+        end
+        return false
+    end
+
+    function startAutoRevive()
+        if reviveLoopHandle then return end
+        reviveLoopHandle = task.spawn(function()
+            while autoReviveEnabled do
+                local currentPlayer = Players.LocalPlayer
+                if currentPlayer and currentPlayer.Character and currentPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local myHRP = currentPlayer.Character.HumanoidRootPart
+                    for _, pl in ipairs(Players:GetPlayers()) do
+                        if pl ~= currentPlayer then
+                            local char = pl.Character
+                            if char and char:FindFirstChild("HumanoidRootPart") then
+                                if isPlayerDowned(pl) then
+                                    local hrp = char.HumanoidRootPart
+                                    local success, dist = pcall(function()
+                                        return (myHRP.Position - hrp.Position).Magnitude
+                                    end)
+                                    if success and dist and dist <= reviveRange then
+                                        pcall(function()
+                                            interactEvent:FireServer("Revive", true, pl.Name)
+                                        end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(loopDelay)
+            end
+            reviveLoopHandle = nil
+        end)
+    end
+
+    function stopAutoRevive()
+        autoReviveEnabled = false
+    end
+
+    function ToggleAutoRevive(state)
+        if state == nil then
+            autoReviveEnabled = not autoReviveEnabled
+        else
+            autoReviveEnabled = (state == true)
+        end
+        if autoReviveEnabled then
+            startAutoRevive()
+        else
+            stopAutoRevive()
+        end
+    end
+
+    function SetReviveRange(range)
+        if type(range) == "number" and range > 0 then
+            reviveRange = range
+        end
+    end
+
+    return {
+        Toggle = ToggleAutoRevive,
+        Start = function() ToggleAutoRevive(true) end,
+        Stop = function() ToggleAutoRevive(false) end,
+        SetRange = SetReviveRange,
+        IsEnabled = function() return autoReviveEnabled end,
+    }
+end
+
+function startAutoMoneyFarm()
+    if AutoMoneyFarmConnection then return end
+    
+    if not AutoReviveModule then
+        AutoReviveModule = initAutoReviveModule()
+    end
+    
+    AutoReviveModule.Start()
+    
+    AutoMoneyFarmConnection = RunService.Heartbeat:Connect(function()
+        local securityPart = workspace:FindFirstChild("SecurityPart")
+        if not securityPart then return end
+        
+        local currentCharacter = LocalPlayer.Character
+        if not currentCharacter then return end
+        
+        local currentRootPart = currentCharacter:FindFirstChild("HumanoidRootPart")
+        if not currentRootPart then return end
+        
+        local downedPlayerFound = false
+        local playersInGame = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Players")
+        
+        if playersInGame then
+            for _, v in pairs(playersInGame:GetChildren()) do
+                if v:IsA("Model") and v:GetAttribute("Downed") then
+                    if v:FindFirstChild("RagdollConstraints") then
+                        continue
+                    end
+                    
+                    local vHrp = v:FindFirstChild("HumanoidRootPart")
+                    if vHrp then
+                        currentRootPart.CFrame = vHrp.CFrame + Vector3.new(0, 3, 0)
+                        pcall(function()
+                            ReplicatedStorage.Events.Character.Interact:FireServer("Revive", true, v)
+                        end)
+                        task.wait(0.5)
+                        downedPlayerFound = true
+                        break
+                    end
+                end
+            end
+        end
+        
+        if not downedPlayerFound then
+            currentRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+        end
+    end)
+end
+
+function stopAutoMoneyFarm()
+    if AutoMoneyFarmConnection then
+        AutoMoneyFarmConnection:Disconnect()
+        AutoMoneyFarmConnection = nil
+    end
+    
+    if AutoReviveModule then
+        AutoReviveModule.Stop()
+    end
+end
+
+AutoMoneyFarmToggle:OnChanged(function(state)
+    if state then
+        startAutoMoneyFarm()
+    else
+        stopAutoMoneyFarm()
+    end
+end)
+
+AFKFarmToggle:OnChanged(function(state)
+    if state then
+        startAutoWin()
+    else
+        stopAutoWin()
+    end
+end)
+
+AutoTicketFarmToggle:OnChanged(function(state)
+    local yOffset = 15
+    local currentTicket = nil
+    local ticketProcessedTime = 0
+
+    if state then
+        local securityPart = workspace:FindFirstChild("SecurityPart")
+        if not securityPart then
+            return
+        end
+
+        if AutoTicketFarmConnection then
+            AutoTicketFarmConnection:Disconnect()
+        end
+        
+        AutoTicketFarmConnection = RunService.Heartbeat:Connect(function()
+            local character = LocalPlayer.Character
+            if not character then return end
+            
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            if not humanoidRootPart then return end
+            
+            local tickets = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Effects") and workspace.Game.Effects:FindFirstChild("Tickets")
+
+            if character:GetAttribute("Downed") then
+                pcall(function()
+                    ReplicatedStorage.Events.Player.ChangePlayerMode:FireServer(true)
+                end)
+                humanoidRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+                return
+            end
+
+            if tickets then
+                local activeTickets = tickets:GetChildren()
+                if #activeTickets > 0 then
+                    if not currentTicket or not currentTicket.Parent then
+                        currentTicket = activeTickets[1]
+                        ticketProcessedTime = tick()
+                    end
+
+                    if currentTicket and currentTicket.Parent then
+                        local ticketPart = currentTicket:FindFirstChild("HumanoidRootPart") or currentTicket:IsA("BasePart") and currentTicket
+                        if ticketPart then
+                            local targetPosition = ticketPart.Position + Vector3.new(0, yOffset, 0)
+                            humanoidRootPart.CFrame = CFrame.new(targetPosition)
+                            
+                            if tick() - ticketProcessedTime > 0.1 then
+                                humanoidRootPart.CFrame = ticketPart.CFrame
+                            end
+                        else
+                            currentTicket = nil
+                        end
+                    else
+                        humanoidRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+                        currentTicket = nil
+                    end
+                else
+                    humanoidRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+                    currentTicket = nil
+                end
+            else
+                humanoidRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+                currentTicket = nil
+            end
+        end)
+    else
+        if AutoTicketFarmConnection then
+            AutoTicketFarmConnection:Disconnect()
+            AutoTicketFarmConnection = nil
+        end
+        currentTicket = nil
+        local character = LocalPlayer.Character
+        if character then
+            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+            local securityPart = workspace:FindFirstChild("SecurityPart")
+            if humanoidRootPart and securityPart then
+                humanoidRootPart.CFrame = securityPart.CFrame + Vector3.new(0, 3, 0)
+            end
+        end
+    end
+end)
+
+CombatTab = Window:AddTab({ Title = "Combat", Icon = "swords" })
+
+CombatTab:AddSection("Anti-Nextbot")
+
+featureStates.AntiNextbot = false
+featureStates.AntiNextbotTeleportType = "Distance"
+featureStates.AntiNextbotDistance = 50
+featureStates.DistanceTeleport = 20
+
+PathfindingService = game:GetService("PathfindingService")
+
+antiNextbotConnection = nil
+farmsSuppressedByAntiNextbot = false
+previousMoneyFarm = false
+previousTicketFarm = false
+previousAutoWin = false
+
+function handleAntiNextbot()
+    if not featureStates.AntiNextbot then return end
+
+    character = Players.LocalPlayer.Character
+    humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+
+    nextbots = {}
+    npcsFolder = workspace:FindFirstChild("NPCs")
+    if npcsFolder then
+        for _, model in ipairs(npcsFolder:GetChildren()) do
+            if model:IsA("Model") and isNextbotModel(model) then
+                hrp = model:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    table.insert(nextbots, model)
+                end
+            end
+        end
+    end
+
+    playersFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Players")
+    if playersFolder then
+        for _, model in ipairs(playersFolder:GetChildren()) do
+            if model:IsA("Model") and isNextbotModel(model) then
+                hrp = model:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    table.insert(nextbots, model)
+                end
+            end
+        end
+    end
+
+    for _, nextbot in ipairs(nextbots) do
+        nextbotHrp = nextbot:FindFirstChild("HumanoidRootPart")
+        if nextbotHrp then
+            distance = (humanoidRootPart.Position - nextbotHrp.Position).Magnitude
+            if distance <= featureStates.AntiNextbotDistance then
+                if featureStates.AntiNextbotTeleportType == "Players" then
+                    validPlayers = {}
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                            table.insert(validPlayers, plr)
+                        end
+                    end
+                    if #validPlayers > 0 then
+                        randomPlayer = validPlayers[math.random(1, #validPlayers)]
+                        humanoidRootPart.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                    end
+                elseif featureStates.AntiNextbotTeleportType == "Spawn" then
+                    spawnsFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Map") and workspace.Game.Map:FindFirstChild("Parts") and workspace.Game.Map.Parts:FindFirstChild("Spawns")
+                    if spawnsFolder then
+                        spawnLocations = spawnsFolder:GetChildren()
+                        if #spawnLocations > 0 then
+                            randomSpawn = spawnLocations[math.random(1, #spawnLocations)]
+                            humanoidRootPart.CFrame = randomSpawn.CFrame + Vector3.new(0, 3, 0)
+                        end
+                    end
+                elseif featureStates.AntiNextbotTeleportType == "Distance" then
+                    direction = (humanoidRootPart.Position - nextbotHrp.Position).Unit
+                    targetPos = humanoidRootPart.Position + direction * featureStates.DistanceTeleport
+
+                    path = PathfindingService:CreatePath({
+                        AgentRadius = 2,
+                        AgentHeight = 5,
+                        AgentCanJump = true
+                    })
+
+                    success, errorMessage = pcall(function()
+                        path:ComputeAsync(humanoidRootPart.Position, targetPos)
+                    end)
+
+                    if success and path.Status == Enum.PathStatus.Success then
+                        waypoints = path:GetWaypoints()
+                        if #waypoints > 1 then
+                            lastValidPos = waypoints[#waypoints].Position
+                            distanceToTarget = (lastValidPos - humanoidRootPart.Position).Magnitude
+                            if distanceToTarget <= featureStates.DistanceTeleport then
+                                humanoidRootPart.CFrame = CFrame.new(lastValidPos + Vector3.new(0, 3, 0))
+                            else
+                                for i = #waypoints, 1, -1 do
+                                    waypointPos = waypoints[i].Position
+                                    if (waypointPos - humanoidRootPart.Position).Magnitude <= featureStates.DistanceTeleport then
+                                        humanoidRootPart.CFrame = CFrame.new(waypointPos + Vector3.new(0, 3, 0))
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                    else
+                        fallbackPos = humanoidRootPart.Position + direction * featureStates.DistanceTeleport
+                        ray = Ray.new(humanoidRootPart.Position, direction * featureStates.DistanceTeleport)
+                        hit, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, {character, nextbot})
+                        if not hit then
+                            humanoidRootPart.CFrame = CFrame.new(fallbackPos + Vector3.new(0, 3, 0))
+                        else
+                            humanoidRootPart.CFrame = CFrame.new(hitPos + Vector3.new(0, 3, 0))
+                        end
+                    end
+                end
+                break
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while true do
+        if featureStates.AntiNextbot then
+            pcall(handleAntiNextbot)
+        end
+        task.wait(0.1)
+    end
+end)
+
+AntiNextbotToggle = CombatTab:AddToggle("AntiNextbotToggle", {
+    Title = "Anti-Nextbot",
+    Default = false
+})
+
+AntiNextbotTeleportTypeDropdown = CombatTab:AddDropdown("AntiNextbotTeleportTypeDropdown", {
+    Title = "Teleport Type",
+    Values = {"Players", "Spawn", "Distance"},
+    Multi = false,
+    Default = "Distance"
+})
+
+AntiNextbotDistanceInput = CombatTab:AddInput("AntiNextbotDistanceInput", {
+    Title = "Detection Distance",
+    Default = "50",
+    Placeholder = "Enter distance",
+    Numeric = true,
+    Finished = false
+})
+
+DistanceTeleportInput = CombatTab:AddInput("DistanceTeleportInput", {
+    Title = "Teleport Distance",
+    Default = "20",
+    Placeholder = "Enter distance",
+    Numeric = true,
+    Finished = false
+})
+
+AntiNextbotToggle:OnChanged(function(state)
+    featureStates.AntiNextbot = state
+    
+    if state then
+        antiNextbotConnection = RunService.Heartbeat:Connect(function()
+            if not featureStates.AntiNextbot then return end
+            
+            character = player.Character
+            humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+            if not humanoidRootPart then return end
+            
+            nearestDistance = math.huge
+            nearestNextbot = nil
+            playersFolder = workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Players")
+            npcsFolder = workspace:FindFirstChild("NPCs")
+            
+            if playersFolder then
+                for _, model in pairs(playersFolder:GetChildren()) do
+                    if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") and isNextbotModel(model) then
+                        dist = (model.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                        if dist < nearestDistance then
+                            nearestDistance = dist
+                            nearestNextbot = model
+                        end
+                    end
+                end
+            end
+            
+            if npcsFolder then
+                for _, model in pairs(npcsFolder:GetChildren()) do
+                    if model:IsA("Model") and model:FindFirstChild("HumanoidRootPart") and isNextbotModel(model) then
+                        dist = (model.HumanoidRootPart.Position - humanoidRootPart.Position).Magnitude
+                        if dist < nearestDistance then
+                            nearestDistance = dist
+                            nearestNextbot = model
+                        end
+                    end
+                end
+            end
+            
+            threshold = featureStates.AntiNextbotDistance
+            isTooClose = (nearestDistance < threshold)
+            
+            if isTooClose and not farmsSuppressedByAntiNextbot then
+                previousMoneyFarm = Options.AutoMoneyFarmToggle.Value
+                previousTicketFarm = Options.AutoTicketFarmToggle.Value
+                previousAutoWin = Options.AFKFarmToggle.Value
+                
+                if Options.AutoMoneyFarmToggle.Value then
+                    Options.AutoMoneyFarmToggle:Set(false)
+                end
+                if Options.AutoTicketFarmToggle.Value then
+                    Options.AutoTicketFarmToggle:Set(false)
+                end
+                if Options.AFKFarmToggle.Value then
+                    Options.AFKFarmToggle:Set(false)
+                end
+                
+                farmsSuppressedByAntiNextbot = true
+            elseif not isTooClose and farmsSuppressedByAntiNextbot then
+                if previousMoneyFarm then
+                    Options.AutoMoneyFarmToggle:Set(true)
+                end
+                if previousTicketFarm then
+                    Options.AutoTicketFarmToggle:Set(true)
+                end
+                if previousAutoWin then
+                    Options.AFKFarmToggle:Set(true)
+                end
+                
+                farmsSuppressedByAntiNextbot = false
+            end
+            
+            if isTooClose then
+                safePart = workspace:FindFirstChild("SecurityPart")
+                if safePart then
+                    humanoidRootPart.CFrame = safePart.CFrame + Vector3.new(math.random(-5, 5), 3, math.random(-5, 5))
+                end
+            end
+        end)
+    else
+        if antiNextbotConnection then
+            antiNextbotConnection:Disconnect()
+            antiNextbotConnection = nil
+        end
+        if farmsSuppressedByAntiNextbot then
+            if previousMoneyFarm then
+                Options.AutoMoneyFarmToggle:Set(true)
+            end
+            if previousTicketFarm then
+                Options.AutoTicketFarmToggle:Set(true)
+            end
+            if previousAutoWin then
+                Options.AFKFarmToggle:Set(true)
+            end
+            
+            farmsSuppressedByAntiNextbot = false
+        end
+    end
+end)
+
+AntiNextbotTeleportTypeDropdown:OnChanged(function(value)
+    featureStates.AntiNextbotTeleportType = value
+end)
+
+AntiNextbotDistanceInput:OnChanged(function(value)
+    num = tonumber(value)
+    if num and num > 0 then
+        featureStates.AntiNextbotDistance = num
+    end
+end)
+
+DistanceTeleportInput:OnChanged(function(value)
+    num = tonumber(value)
+    if num and num > 0 then
+        featureStates.DistanceTeleport = num
+    end
+end)
+ MiscTab = Window:AddTab({ Title = "Misc", Icon = "star" })
+MiscTab:AddSection("Player Adjustments")
+local currentSettings = {
+    Speed = "1500",
+    JumpCap = "1",
+    AirStrafeAcceleration = "187"
+}
+local appliedOnce = false
+local playerModelPresent = false
+local gameStatsPath = workspace:WaitForChild("Game"):WaitForChild("Stats")
+getgenv().ApplyMode = "Not Optimized"
+local requiredFields = {
+    Friction = true,
+    AirStrafeAcceleration = true,
+    JumpHeight = true,
+    RunDeaccel = true,
+    JumpSpeedMultiplier = true,
+    JumpCap = true,
+    SprintCap = true,
+    WalkSpeedMultiplier = true,
+    BhopEnabled = true,
+    Speed = true,
+    AirAcceleration = true,
+    RunAccel = true,
+    SprintAcceleration = true
+}
+
+local function hasAllFields(tbl)
+    if type(tbl) ~= "table" then return false end
+    for field, _ in pairs(requiredFields) do
+        if rawget(tbl, field) == nil then return false end
+    end
+    return true
+end
+
+local function getConfigTables()
+    local tables = {}
+    for _, obj in ipairs(getgc(true)) do
+        local success, result = pcall(function()
+            if hasAllFields(obj) then return obj end
+        end)
+        if success and result then
+            table.insert(tables, result)
+        end
+    end
+    return tables
+end
+
+local function applyToTables(callback)
+    local targets = getConfigTables()
+    if #targets == 0 then return end
+    
+    if getgenv().ApplyMode == "Optimized" then
+        task.spawn(function()
+            for i, tableObj in ipairs(targets) do
+                if tableObj and typeof(tableObj) == "table" then
+                    pcall(callback, tableObj)
+                end
+                
+                if i % 3 == 0 then
+                    task.wait()
+                end
+            end
+        end)
+    else
+        for i, tableObj in ipairs(targets) do
+            if tableObj and typeof(tableObj) == "table" then
+                pcall(callback, tableObj)
+            end
+        end
+    end
+end
+
+local function applyStoredSettings()
+    local settings = {
+        {field = "Speed", value = tonumber(currentSettings.Speed)},
+        {field = "JumpCap", value = tonumber(currentSettings.JumpCap)},
+        {field = "AirStrafeAcceleration", value = tonumber(currentSettings.AirStrafeAcceleration)}
+    }
+    
+    for _, setting in ipairs(settings) do
+        if setting.value and tostring(setting.value) ~= "1500" and tostring(setting.value) ~= "1" and tostring(setting.value) ~= "187" then
+            applyToTables(function(obj)
+                obj[setting.field] = setting.value
+            end)
+        end
+    end
+end
+
+local function applySettingsWithDelay()
+    if not playerModelPresent or appliedOnce then
+        return
+    end
+    
+    appliedOnce = true
+    
+    local settings = {
+        {field = "Speed", value = tonumber(currentSettings.Speed), delay = math.random(1, 14)},
+        {field = "JumpCap", value = tonumber(currentSettings.JumpCap), delay = math.random(1, 14)},
+        {field = "AirStrafeAcceleration", value = tonumber(currentSettings.AirStrafeAcceleration), delay = math.random(1, 14)}
+    }
+    
+    for _, setting in ipairs(settings) do
+        if setting.value and tostring(setting.value) ~= "1500" and tostring(setting.value) ~= "1" and tostring(setting.value) ~= "187" then
+            task.spawn(function()
+                task.wait(setting.delay)
+                applyToTables(function(obj)
+                    obj[setting.field] = setting.value
+                end)
+            end)
+        end
+    end
+end
+
+local function isPlayerModelPresent()
+    local GameFolder = workspace:FindFirstChild("Game")
+    local PlayersFolder = GameFolder and GameFolder:FindFirstChild("Players")
+    return PlayersFolder and PlayersFolder:FindFirstChild(player.Name) ~= nil
+end
+
+SpeedInput = MiscTab:AddInput("SpeedInput", {
+    Title = "Player Speed",
+    Default = currentSettings.Speed,
+    Placeholder = "Default 1500",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local val = tonumber(Value)
+        if val and val >= 1450 and val <= 100008888 then
+            currentSettings.Speed = tostring(val)
+            applyToTables(function(obj)
+                obj.Speed = val
+            end)
+        end
+    end
+})
+
+JumpPowerInput = Tabs.Main:AddInput("JumpPowerInput", {
+    Title = "Player Jump",
+    Default = "5",
+    Placeholder = "",
+    Numeric = true,
+    Finished = true,
+    Callback = function(Value)
+        if Value and tonumber(Value) then
+            JumpPowerValue = tonumber(Value)
+        end
+    end
+})
+
+JumpCapInput = MiscTab:AddInput("JumpCapInput", {
+    Title = "Player Jump Cap",
+    Default = currentSettings.JumpCap,
+    Placeholder = "Default 1",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local val = tonumber(Value)
+        if val and val >= 0.1 and val <= 5088888 then
+            currentSettings.JumpCap = tostring(val)
+            applyToTables(function(obj)
+                obj.JumpCap = val
+            end)
+        end
+    end
+})
+
+StrafeInput = MiscTab:AddInput("StrafeInput", {
+    Title = "Player Strafe Acceleration",
+    Default = currentSettings.AirStrafeAcceleration,
+    Placeholder = "Default 187",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local val = tonumber(Value)
+        if val and val >= 1 and val <= 1000888888 then
+            currentSettings.AirStrafeAcceleration = tostring(val)
+            applyToTables(function(obj)
+                obj.AirStrafeAcceleration = val
+            end)
+        end
+    end
+})
+
+ApplyMethodDropdown = MiscTab:AddDropdown("ApplyMethodDropdown", {
+    Title = "Select Apply Method",
+    Values = {"Not Optimized", "Optimized"},
+    Multi = false,
+    Default = getgenv().ApplyMode,
+    Callback = function(Value)
+        getgenv().ApplyMode = Value
+    end
+})
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ChangeSettingRemote = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Data"):WaitForChild("ChangeSetting")
+local UpdatedEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Client"):WaitForChild("Settings"):WaitForChild("Updated")
+
+FovInput = MiscTab:AddInput("FovInput", {
+    Title = "Player FOV",
+    Default = "",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num then
+            ChangeSettingRemote:InvokeServer(2, num)
+            UpdatedEvent:Fire(2, num)
+        end
+    end
+})
+
+JumpPowerValue = 50
+MaxJumpsValue = math.huge
+
+CurrentJumpCount = 0
+JumpHumanoid = nil
+JumpRootPart = nil
+
+Players.LocalPlayer.CharacterAdded:Connect(function(newChar)
+    task.wait(0.5)
+    JumpHumanoid = newChar:FindFirstChild("Humanoid")
+    JumpRootPart = newChar:FindFirstChild("HumanoidRootPart")
+    if JumpHumanoid and JumpRootPart then
+        CurrentJumpCount = 0
+        JumpHumanoid.StateChanged:Connect(function(oldState, newState)
+            if newState == Enum.HumanoidStateType.Landed then
+                CurrentJumpCount = 0
+            end
+        end)
+        JumpHumanoid.Jumping:Connect(function(isJumping)
+            if isJumping and CurrentJumpCount < MaxJumpsValue then
+                CurrentJumpCount = CurrentJumpCount + 1
+                JumpHumanoid.JumpHeight = JumpPowerValue
+                if CurrentJumpCount > 1 and JumpRootPart then
+                    JumpRootPart:ApplyImpulse(Vector3.new(0, JumpPowerValue * JumpRootPart.Mass, 0))
+                end
+            end
+        end)
+    end
+end)
+
+-- Handle initial character
+if Players.LocalPlayer.Character then
+    task.spawn(function()
+        task.wait(0.5)
+        JumpHumanoid = Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+        JumpRootPart = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if JumpHumanoid and JumpRootPart then
+            CurrentJumpCount = 0
+            JumpHumanoid.StateChanged:Connect(function(oldState, newState)
+                if newState == Enum.HumanoidStateType.Landed then
+                    CurrentJumpCount = 0
+                end
+            end)
+            JumpHumanoid.Jumping:Connect(function(isJumping)
+                if isJumping and CurrentJumpCount < MaxJumpsValue then
+                    CurrentJumpCount = CurrentJumpCount + 1
+                    JumpHumanoid.JumpHeight = JumpPowerValue
+                    if CurrentJumpCount > 1 and JumpRootPart then
+                        JumpRootPart:ApplyImpulse(Vector3.new(0, JumpPowerValue * JumpRootPart.Mass, 0))
+                    end
+                end
+            end)
+        end
+    end)
+end
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    task.wait(0.5)
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+end)
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
@@ -1287,3 +2212,4 @@ SaveManager:SetFolder("DraconicXEvade/Config")
 
 Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Pnsdgsa/Script-kids/refs/heads/main/Scripthub/Darahub/evade/TimerGUI-NoRepeat'))()
