@@ -11,7 +11,7 @@ local function downloadAudio()
         return true
     end
     
-    local audioUrl = "https://github.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/raw/refs/heads/main/File/audio/Bruh%20sound%20effect_256k.mp3"
+    local audioUrl = "https://github.com/Nyxarth910/Draconic-Hub-X/raw/refs/heads/main/Files/audio/Bruh%20sound%20effect_256k.mp3"
     local request = http_request or (syn and syn.request) or request
     
     local success, response = pcall(function()
