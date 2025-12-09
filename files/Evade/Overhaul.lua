@@ -11,7 +11,7 @@ local Window = Fluent:CreateWindow({
     MinimizeKey = Enum.KeyCode.LeftControl
 })
 
-local FloatingButton = loadstring(game:HttpGet("https://raw.githubusercontent.com/010101010101010111/010101010101010111-010101010101010111-1001100101100101001001101010101010101101001010101010101101010/refs/heads/main/File/Floating%20Button.lua",true))()
+local FloatingButton = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nyxarth910/Draconic-Hub-X/refs/heads/main/Files/Floating%20Button.lua",true))()
 FloatingButton.init(Window)
 
 local Tabs = {
@@ -2068,9 +2068,9 @@ SpeedInput = MiscTab:AddInput("SpeedInput", {
     end
 })
 
-JumpPowerInput = Tabs.Main:AddInput("JumpPowerInput", {
+JumpPowerInput = MiscTab:AddInput("JumpPowerInput", {
     Title = "Player Jump",
-    Default = "5",
+    Default = "3",
     Placeholder = "",
     Numeric = true,
     Finished = true,
@@ -2142,7 +2142,7 @@ FovInput = MiscTab:AddInput("FovInput", {
     end
 })
 
-JumpPowerValue = 50
+JumpPowerValue = 3
 MaxJumpsValue = math.huge
 
 CurrentJumpCount = 0
@@ -2203,6 +2203,1295 @@ LocalPlayer.CharacterAdded:Connect(function(newChar)
     humanoid = character:WaitForChild("Humanoid")
     rootPart = character:WaitForChild("HumanoidRootPart")
 end)
+MiscTab:AddParagraph({
+    Title = "",
+    Content = ""
+})
+--====FAILED TO DECOMPILED CODE====--
+JumpPowerToggle = MiscTab:AddToggle("JumpPowerToggle", {
+    Title = "Jump Power Toggle",
+    Default = false
+})
+
+JumpPowerToggle:OnChanged(function()
+    --====FAILED TO EXECUTE FUNCTION====--
+end)
+
+--====FAILED TO DECOMPILED CODE====--
+PlayerJumpPowerInput = MiscTab:AddInput("PlayerJumpPowerInput", {
+    Title = "Player Jump Power",
+    Default = "Failed To Decode",
+    Placeholder = "Failed To Decode",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        --====FAILED TO EXECUTE CALLBACK====--
+    end
+})
+
+--====FAILED TO DECOMPILED CODE====--
+WalkspeedToggle = MiscTab:AddToggle("WalkspeedToggle", {
+    Title = "Walkspeed Toggle",
+    Default = false
+})
+
+WalkspeedToggle:OnChanged(function()
+    --====FAILED TO EXECUTE FUNCTION====--
+end)
+
+--====FAILED TO DECOMPILED CODE====--
+PlayerWalkspeedInput = MiscTab:AddInput("PlayerWalkspeedInput", {
+    Title = "Player Walkspeed",
+    Default = "Failed To Decode",
+    Placeholder = "Failed To Decode",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        --====FAILED TO EXECUTE CALLBACK====--
+    end
+})
+--====FAILED TO DECOMPILED CODE====--
+BounceToggle = MiscTab:AddToggle("WalkspeedToggle", {
+    Title = "Walkspeed Toggle",
+    Default = false
+})
+
+BounceToggle:OnChanged(function()
+    --====FAILED TO EXECUTE FUNCTION====--
+end)
+
+--====FAILED TO DECOMPILED CODE====--
+BounceInput = MiscTab:AddInput("BounceInput", {
+    Title = "Player Walkspeed",
+    Default = "Failed To Decode",
+    Placeholder = "Failed To Decode",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        --====FAILED TO EXECUTE CALLBACK====--
+    end
+})
+MiscTab:AddParagraph({
+    Title = "",
+    Content = ""
+})
+BounceToggle = MiscTab:AddToggle("BounceToggle", {
+    Title = "Modify Bounce",
+    Default = false
+    --[[ FAILED TO DECOMPILE FUNCTION]]
+})
+
+BounceInput = MiscTab:AddInput("BounceInput", {
+    Title = "Player Bounce",
+    Default = "80",
+    Placeholder = "Failed to Decode",
+    Numeric = true,
+    Finished = false
+})
+
+MiscTab:AddSection("Game Automations")
+
+
+local InstantReviveToggle = MiscTab:AddToggle("InstantReviveToggle", {
+    Title = "Instant Revive",
+    Default = false
+})
+
+local ReviveWhileEmoteToggle = MiscTab:AddToggle("ReviveWhileEmoteToggle", {
+    Title = "Instant Revive While Emoting",
+    Default = false
+})
+
+local ReviveDelaySlider = MiscTab:AddSlider("ReviveDelaySlider", {
+    Title = "Revive Delay",
+    Min = 0,
+    Max = 1,
+    Default = 0.15,
+    Rounding = 2,
+    Callback = function(value)
+        getgenv().InstantReviveDelay = value
+    end
+})
+getgenv().InstantReviveDelay = 0.15
+
+local InstantReviveModule = (function()
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local LocalPlayer = Players.LocalPlayer
+
+    local reviveRange = 10
+    local loopDelay = getgenv().InstantReviveDelay or 0.15
+
+    local enabled = false
+    local handle = nil
+    local stateConnection = nil
+    local isCurrentlyEmoting = false
+
+    local interactEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Character"):WaitForChild("Interact")
+
+    local function updateEmoteStatus()
+        if not LocalPlayer.Character then
+            isCurrentlyEmoting = false
+            return
+        end
+        local state = LocalPlayer.Character:GetAttribute("State")
+        isCurrentlyEmoting = state and string.find(state, "Emoting")
+    end
+
+    local function isPlayerDowned(pl)
+        if not pl or not pl.Character then return false end
+        local char = pl.Character
+        if char:GetAttribute("Downed") then return true end
+        local hum = char:FindFirstChild("Humanoid")
+        if hum and hum.Health <= 0 then return true end
+        return false
+    end
+
+    local function reviveLoop()
+        while enabled do
+            if isCurrentlyEmoting and not Options.ReviveWhileEmoteToggle.Value then
+                task.wait(0.3)
+                continue
+            end
+
+            local myChar = LocalPlayer.Character
+            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                local myHRP = myChar.HumanoidRootPart
+
+                for _, pl in Players:GetPlayers() do
+                    if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("HumanoidRootPart") then
+                        if isPlayerDowned(pl) then
+                            local dist = (myHRP.Position - pl.Character.HumanoidRootPart.Position).Magnitude
+                            if dist <= reviveRange then
+                                pcall(function()
+                                    interactEvent:FireServer("Revive", true, pl.Name)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+
+            task.wait(loopDelay)
+        end
+    end
+
+    local function start()
+        if handle then return end
+        enabled = true
+        updateEmoteStatus()
+
+        if LocalPlayer.Character then
+            stateConnection = LocalPlayer.Character:GetAttributeChangedSignal("State"):Connect(updateEmoteStatus)
+        end
+        LocalPlayer.CharacterAdded:Connect(function(char)
+            if stateConnection then stateConnection:Disconnect() end
+            stateConnection = char:GetAttributeChangedSignal("State"):Connect(updateEmoteStatus)
+            updateEmoteStatus()
+        end)
+
+        handle = task.spawn(reviveLoop)
+    end
+
+    local function stop()
+        enabled = false
+        if handle then task.cancel(handle) handle = nil end
+        if stateConnection then stateConnection:Disconnect() stateConnection = nil end
+        isCurrentlyEmoting = false
+    end
+
+    return {
+        Start = start,
+        Stop = stop,
+        SetDelay = function(d) loopDelay = d end,
+    }
+end)()
+
+InstantReviveToggle:OnChanged(function(state)
+    if state then
+        InstantReviveModule.SetDelay(getgenv().InstantReviveDelay)
+        InstantReviveModule.Start()
+    else
+        InstantReviveModule.Stop()
+    end
+end)
+
+ReviveDelaySlider:OnChanged(function(value)
+    getgenv().InstantReviveDelay = value
+    InstantReviveModule.SetDelay(value)
+end)
+MiscTab:AddParagraph({
+    Title = "",
+    Content = ""
+})
+AutoCarryToggle = MiscTab:AddToggle("AutoCarryToggle", {
+    Title = "Auto Carry",
+    Default = false
+})
+
+CarryGUIToggle = MiscTab:AddToggle("CarryGUIToggle", {
+    Title = "Carry GUI Button",
+    Default = false
+})
+
+CarryButtonSizeInput = MiscTab:AddInput("CarryButtonSizeInput", {
+    Title = "Carry Button Size",
+    Default = "200",
+    Placeholder = "Enter size (150-400)",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        if Value and tonumber(Value) then
+            local size = tonumber(Value)
+            local CoreGui = game:GetService("CoreGui")
+            local existingScreenGui = CoreGui:FindFirstChild("AutoCarryButtonGUI")
+            
+            if existingScreenGui then
+                local button = existingScreenGui:FindFirstChild("GradientBtn")
+                if button then
+                    local newWidth = math.max(150, math.min(size, 400))
+                    local newHeight = math.max(60, math.min(size * 0.4, 160))
+                    button.Size = UDim2.new(0, newWidth, 0, newHeight)
+                end
+            end
+        end
+    end
+})
+
+CarryKeybind = MiscTab:AddKeybind("CarryKeybind", {
+    Title = "Auto Carry Keybind",
+    Mode = "Toggle",
+    Default = "F3",
+    ChangedCallback = function(New)
+        Options.AutoCarryToggle:SetValue(not Options.AutoCarryToggle.Value)
+    end
+})
+
+local AutoCarryConnection = nil
+local featureStates = featureStates or {}
+local player = game:GetService("Players").LocalPlayer
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local function createGradientButton(parent, position, size, text)
+    local button = Instance.new("Frame")
+    button.Name = "GradientBtn"
+    button.BackgroundTransparency = 0.7
+    button.Size = size
+    button.Position = position
+    button.Draggable = true
+    button.Active = true
+    button.Selectable = true
+    button.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = button
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+    }
+    gradient.Rotation = 45
+    gradient.Parent = button
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(120, 0, 0)
+    stroke.Thickness = 2
+    stroke.Parent = button
+
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 30
+    label.Font = Enum.Font.GothamMedium
+    label.Parent = button
+
+    local clicker = Instance.new("TextButton")
+    clicker.Size = UDim2.new(1, 0, 1, 0)
+    clicker.BackgroundTransparency = 1
+    clicker.Text = ""
+    clicker.ZIndex = 5
+    clicker.Active = false
+    clicker.Selectable = false
+    clicker.Parent = button
+
+    return button, clicker, stroke
+end
+
+local function startAutoCarry()
+    if AutoCarryConnection then return end
+    
+    AutoCarryConnection = RunService.Heartbeat:Connect(function()
+        if not featureStates.AutoCarry then 
+            return 
+        end
+        
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        
+        if hrp then
+            for _, other in ipairs(Players:GetPlayers()) do
+                if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (hrp.Position - other.Character.HumanoidRootPart.Position).Magnitude
+                    if dist <= 20 then
+                        local args = { "Carry", [3] = other.Name }
+                        pcall(function()
+                            game:GetService("ReplicatedStorage"):WaitForChild("Events"):WaitForChild("Character"):WaitForChild("Interact"):FireServer(unpack(args))
+                        end)
+                        task.wait(0.01)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function stopAutoCarry()
+    if AutoCarryConnection then
+        AutoCarryConnection:Disconnect()
+        AutoCarryConnection = nil
+    end
+end
+
+local function toggleAutoCarryGUI()
+    local CoreGui = game:GetService("CoreGui")
+    local existingScreenGui = CoreGui:FindFirstChild("AutoCarryButtonGUI")
+    
+    if existingScreenGui then
+        existingScreenGui:Destroy()
+    else
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "AutoCarryButtonGUI"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = CoreGui
+        
+        local buttonSize = 200
+        if Options.CarryButtonSizeInput and Options.CarryButtonSizeInput.Value and tonumber(Options.CarryButtonSizeInput.Value) then
+            buttonSize = tonumber(Options.CarryButtonSizeInput.Value)
+        end
+        
+        local btnWidth = math.max(150, math.min(buttonSize, 400))
+        local btnHeight = math.max(60, math.min(buttonSize * 0.4, 160))
+        
+        local btn, clicker, stroke = createGradientButton(
+            screenGui,
+            UDim2.new(0.5, -btnWidth/2, 0.5, -btnHeight/2),
+            UDim2.new(0, btnWidth, 0, btnHeight),
+            "Auto Carry:Off"
+        )
+        
+        local function updateButtonText()
+            if btn and btn:FindFirstChild("TextLabel") then
+                btn.TextLabel.Text = featureStates.AutoCarry and "Auto Carry:On" or "Auto Carry:Off"
+            end
+        end
+        
+        updateButtonText()
+        
+        clicker.MouseButton1Click:Connect(function()
+            featureStates.AutoCarry = not featureStates.AutoCarry
+            updateButtonText()
+            
+            if featureStates.AutoCarry then
+                startAutoCarry()
+            else
+                stopAutoCarry()
+            end
+        end)
+        
+        AutoCarryToggle:OnChanged(function(state)
+            featureStates.AutoCarry = state
+            updateButtonText()
+            
+            if state then
+                startAutoCarry()
+            else
+                stopAutoCarry()
+            end
+        end)
+    end
+end
+
+AutoCarryToggle:OnChanged(function(state)
+    featureStates.AutoCarry = state
+    
+    if state then
+        startAutoCarry()
+    else
+        stopAutoCarry()
+    end
+end)
+
+CarryGUIToggle:OnChanged(function(state)
+    if state then
+        toggleAutoCarryGUI()
+    else
+        local CoreGui = game:GetService("CoreGui")
+        local existingScreenGui = CoreGui:FindFirstChild("AutoCarryButtonGUI")
+        if existingScreenGui then
+            existingScreenGui:Destroy()
+        end
+    end
+end)
+MiscTab:AddParagraph({
+    Title = "",
+    Content = ""
+})
+AutoDrinkToggle = MiscTab:AddToggle("AutoDrinkToggle", {
+    Title = "Auto Drink Cola",
+    Default = false
+})
+
+DrinkDelayInput = MiscTab:AddInput("DrinkDelayInput", {
+    Title = "Drink Delay (seconds)",
+    Default = "0.5",
+    Placeholder = "Delay between drinks",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        if Value and tonumber(Value) then
+            local delay = tonumber(Value)
+            if delay > 0 then
+                featureStates.DrinkDelay = delay
+            end
+        end
+    end
+})
+
+local AutoDrinkConnection = nil
+local featureStates = featureStates or {}
+local player = game:GetService("Players").LocalPlayer
+local RunService = game:GetService("RunService")
+
+featureStates.DrinkDelay = 0.5
+
+local function startAutoDrink()
+    if AutoDrinkConnection then return end
+    
+    AutoDrinkConnection = task.spawn(function()
+        while featureStates.AutoDrink do
+            local ohTable1 = {
+                ["Forced"] = true,
+                ["Key"] = "Cola",
+                ["Down"] = true
+            }
+            
+            pcall(function()
+                player.PlayerScripts.Events.temporary_events.UseKeybind:Fire(ohTable1)
+            end)
+            
+            task.wait(featureStates.DrinkDelay)
+        end
+        AutoDrinkConnection = nil
+    end)
+end
+
+local function stopAutoDrink()
+    if AutoDrinkConnection then
+        task.cancel(AutoDrinkConnection)
+        AutoDrinkConnection = nil
+    end
+end
+
+player.CharacterRemoving:Connect(function()
+    if featureStates.AutoDrink then
+        stopAutoDrink()
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    if featureStates.AutoDrink then
+        task.wait(1)
+        startAutoDrink()
+    end
+end)
+
+AutoDrinkToggle:OnChanged(function(state)
+    featureStates.AutoDrink = state
+    
+    if state then
+        startAutoDrink()
+    else
+        stopAutoDrink()
+    end
+end)
+
+featureStates.AutoDrink = false
+featureStates.AutoCarry = false
+MiscTab:AddParagraph({
+    Title = "",
+    Content = ""
+})
+math.randomseed(tick())
+
+local emoteInputs = {}
+for i = 1, 12 do
+    emoteInputs[i] = MiscTab:AddInput("EmoteInput" .. i, {
+        Title = "Emote " .. i,
+        Default = "",
+        Placeholder = "Emote Name Here",
+        Finished = false,
+        Callback = function(Value)
+            featureStates["Emote" .. i] = Value
+        end
+    })
+end
+
+local emoteGui = nil
+local emoteGuiButton = nil
+local emoteGuiVisible = false
+local player = game:GetService("Players").LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local featureStates = featureStates or {}
+local isMobile = UserInputService.TouchEnabled
+local emoteKeybindValue = "" 
+
+local function makeDraggable(frame)
+    frame.Active = true
+    frame.Draggable = true
+    
+    local dragging = false
+    local dragStart, startPos
+    
+    local function update(input)
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+    
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            frame.BackgroundTransparency = 0.6 
+        end
+    end)
+    
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            frame.BackgroundTransparency = 0.7 
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            update(input)
+        end
+    end)
+end
+
+local function triggerRandomEmote()
+    local validEmotes = {}
+    for i = 1, 12 do
+        local emoteName = featureStates["Emote" .. i]
+        if emoteName and emoteName ~= "" then
+            table.insert(validEmotes, emoteName)
+        end
+    end
+    
+    if #validEmotes > 0 then
+        math.randomseed(tick() + #validEmotes)
+        
+        local ohTable1 = { ["Key"] = "Crouch", ["Down"] = true }
+        pcall(function()
+            player.PlayerScripts.Events.temporary_events.UseKeybind:Fire(ohTable1)
+        end)
+        local randomIndex = math.random(1, #validEmotes)
+        local randomEmote = validEmotes[randomIndex]
+        pcall(function()
+            ReplicatedStorage.Events.Character.Emote:FireServer(randomEmote)
+        end)
+    end
+end
+
+local function createGradientButton(parent, position, size, text)
+    local button = Instance.new("Frame")
+    button.Name = "GradientBtn"
+    button.BackgroundTransparency = 0.7
+    button.Size = size
+    button.Position = position
+    button.Draggable = true
+    button.Active = true
+    button.Selectable = true
+    button.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = button
+
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+    }
+    gradient.Rotation = 45
+    gradient.Parent = button
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(120, 0, 0)
+    stroke.Thickness = 2
+    stroke.Parent = button
+
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 16
+    label.Font = Enum.Font.GothamMedium
+    label.TextWrapped = true
+    label.Parent = button
+
+    local clicker = Instance.new("TextButton")
+    clicker.Size = UDim2.new(1, 0, 1, 0)
+    clicker.BackgroundTransparency = 1
+    clicker.Text = ""
+    clicker.ZIndex = 5
+    clicker.Active = false
+    clicker.Selectable = false
+    clicker.Parent = button
+
+    clicker.MouseEnter:Connect(function()
+        stroke.Color = Color3.fromRGB(160, 0, 0)
+    end)
+
+    clicker.MouseLeave:Connect(function()
+        stroke.Color = Color3.fromRGB(120, 0, 0)
+    end)
+
+    return button, clicker, stroke
+end
+
+local function createEmoteGui(yOffset)
+    local emoteGuiOld = playerGui:FindFirstChild("EmoteGui")
+    if emoteGuiOld then emoteGuiOld:Destroy() end
+    
+    emoteGui = Instance.new("ScreenGui")
+    emoteGui.Name = "EmoteGui"
+    emoteGui.IgnoreGuiInset = true
+    emoteGui.ResetOnSpawn = false
+    emoteGui.Enabled = emoteGuiVisible and isMobile
+    emoteGui.Parent = playerGui
+    
+    local buttonText = "Emote Crouch " .. emoteKeybindValue
+    
+    local btn, clicker, stroke = createGradientButton(
+        emoteGui,
+        UDim2.new(0.5, -100, 0.12 + (yOffset or 0), -40),
+        UDim2.new(0, 200, 0, 80),
+        buttonText
+    )
+    
+    makeDraggable(btn)
+    
+    clicker.MouseButton1Click:Connect(function()
+        triggerRandomEmote()
+    end)
+    
+    emoteGuiButton = btn
+end
+
+EmoteKeybind = MiscTab:AddKeybind("EmoteKeybind", {
+    Title = "Emote Keybind",
+    Mode = "Toggle",
+    Default = "", 
+    ChangedCallback = function(New)
+        emoteKeybindValue = New
+        if emoteGuiButton and emoteGuiButton:FindFirstChild("TextLabel") then
+            emoteGuiButton.TextLabel.Text = "Emote Crouch\nClick or Press " .. New
+        end
+    end,
+    Callback = function()
+        triggerRandomEmote()
+    end
+})
+
+EmoteGUIToggle = MiscTab:AddToggle("EmoteGUIToggle", {
+    Title = "Emote Crouch",
+    Description = "Click button or use keybind to trigger random emote. Only type emote name without space and inside your emote slot will work",
+    Default = false,
+    Callback = function(state)
+        emoteGuiVisible = state
+        if state then
+            if isMobile and not emoteGui then
+                createEmoteGui(0)
+            elseif emoteGui then
+                emoteGui.Enabled = isMobile
+            end
+        else
+            if emoteGui then
+                emoteGui:Destroy()
+                emoteGui = nil
+                emoteGuiButton = nil
+            end
+        end
+    end
+})
+
+player.CharacterAdded:Connect(function()
+    if emoteGuiVisible and isMobile and not emoteGui then
+        createEmoteGui(0)
+    end
+end)
+MiscTab:AddSection("Movement Modification")
+
+local originalEmoteSpeeds = {}
+local itemsFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+if itemsFolder then
+    local emotesFolder = itemsFolder:FindFirstChild("Emotes")
+    if emotesFolder then
+        for _, emoteModule in ipairs(emotesFolder:GetChildren()) do
+            if emoteModule:IsA("ModuleScript") then
+                local success, emoteData = pcall(require, emoteModule)
+                if success and emoteData and emoteData.EmoteInfo then
+                    originalEmoteSpeeds[emoteModule.Name] = emoteData.EmoteInfo.SpeedMult
+                end
+            end
+        end
+    end
+end
+
+local function applyEmoteSpeed(speedValue)
+    if not itemsFolder then return end
+    local emotesFolder = itemsFolder:FindFirstChild("Emotes")
+    if not emotesFolder then return end
+    
+    for _, emoteModule in ipairs(emotesFolder:GetChildren()) do
+        if emoteModule:IsA("ModuleScript") then
+            local success, emoteData = pcall(require, emoteModule)
+            if success and emoteData and emoteData.EmoteInfo and emoteData.EmoteInfo.SpeedMult ~= 0 then
+                emoteData.EmoteInfo.SpeedMult = speedValue
+            end
+        end
+    end
+end
+
+local function restoreOriginalEmoteSpeeds()
+    if not itemsFolder then return end
+    local emotesFolder = itemsFolder:FindFirstChild("Emotes")
+    if not emotesFolder then return end
+    
+    for _, emoteModule in ipairs(emotesFolder:GetChildren()) do
+        if emoteModule:IsA("ModuleScript") then
+            local originalSpeed = originalEmoteSpeeds[emoteModule.Name]
+            if originalSpeed then
+                local success, emoteData = pcall(require, emoteModule)
+                if success and emoteData and emoteData.EmoteInfo then
+                    emoteData.EmoteInfo.SpeedMult = originalSpeed
+                end
+            end
+        end
+    end
+end
+
+local requiredFields = {
+    Friction = true,
+    AirStrafeAcceleration = true,
+    JumpHeight = true,
+    RunDeaccel = true,
+    JumpSpeedMultiplier = true,
+    JumpCap = true,
+    SprintCap = true,
+    WalkSpeedMultiplier = true,
+    BhopEnabled = true,
+    Speed = true,
+    AirAcceleration = true,
+    RunAccel = true,
+    SprintAcceleration = true
+}
+
+local function getMatchingTables()
+    local matched = {}
+    for _, obj in pairs(getgc(true)) do
+        if typeof(obj) == "table" then
+            local ok = true
+            for field in pairs(requiredFields) do
+                if rawget(obj, field) == nil then
+                    ok = false
+                    break
+                end
+            end
+            if ok then
+                table.insert(matched, obj)
+            end
+        end
+    end
+    return matched
+end
+
+local function applySpeedMultiplier(speedMultiplier)
+    local targets = getMatchingTables()
+    for _, tableObj in ipairs(targets) do
+        if tableObj and typeof(tableObj) == "table" then
+            pcall(function()
+                tableObj.WalkSpeedMultiplier = speedMultiplier
+            end)
+        end
+    end
+end
+
+local player = game:GetService("Players").LocalPlayer
+
+local function getPlayerObj()
+    local gamePlayers = workspace.Game and workspace.Game.Players
+    if not gamePlayers then return nil end
+    return gamePlayers:FindFirstChild(player.Name)
+end
+
+local playerObj = nil
+local connection = nil
+local emotingSpeed = 1.5
+
+local function setupConnection(obj)
+    if connection then 
+        connection:Disconnect() 
+        connection = nil
+    end
+    playerObj = obj
+    if not obj then return end
+    
+    local function onStateChanged()
+        local state = obj:GetAttribute("State")
+        local targetSpeed = (state == "Emoting") and emotingSpeed or 1.5
+        applySpeedMultiplier(targetSpeed)
+    end
+    
+    onStateChanged()
+    connection = obj:GetAttributeChangedSignal("State"):Connect(onStateChanged)
+end
+
+local function resetMultiplierSpeed()
+    emotingSpeed = 1.5
+    applySpeedMultiplier(1.5)
+end
+
+EmoteSpeedModeDropdown = MiscTab:AddDropdown("EmoteSpeedModeDropdown", {
+    Title = "Emote speed mode",
+    Values = {"Nah", "Legit", "Multiplier speed"},
+    Multi = false,
+    Default = "Nah",
+    Callback = function(Value)
+        if Value == "Nah" then
+            resetMultiplierSpeed()
+            restoreOriginalEmoteSpeeds()
+            if connection then 
+                connection:Disconnect() 
+                connection = nil
+            end
+        elseif Value == "Multiplier speed" then
+            restoreOriginalEmoteSpeeds()
+            setupConnection(getPlayerObj())
+            task.spawn(function()
+                while Options.EmoteSpeedModeDropdown and Options.EmoteSpeedModeDropdown.Value == "Multiplier speed" do
+                    task.wait(2)
+                    local current = getPlayerObj()
+                    if current ~= playerObj then
+                        setupConnection(current)
+                    elseif playerObj then
+                        local state = playerObj:GetAttribute("State")
+                        local targetSpeed = (state == "Emoting") and emotingSpeed or 1.5
+                        applySpeedMultiplier(targetSpeed)
+                    end
+                end
+            end)
+        elseif Value == "Legit" then
+            resetMultiplierSpeed()
+            if connection then 
+                connection:Disconnect() 
+                connection = nil
+            end
+            local speedValue = featureStates.EmoteSpeedValue or 2
+            applyEmoteSpeed(speedValue)
+        end
+    end
+})
+
+EmoteSpeedInput = MiscTab:AddInput("EmoteSpeedInput", {
+    Title = "Emote Speed Value",
+    Default = "1500",
+    Placeholder = "Enter speed value",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and num > 0 then
+            featureStates.EmoteSpeedValue = num
+            local appliedValue = num / 1000
+            
+            if Options.EmoteSpeedModeDropdown and Options.EmoteSpeedModeDropdown.Value == "Legit" then
+                applyEmoteSpeed(appliedValue)
+            elseif Options.EmoteSpeedModeDropdown and Options.EmoteSpeedModeDropdown.Value == "Multiplier speed" then
+                emotingSpeed = appliedValue
+            end
+        end
+    end
+})
+
+ApplyUnwalkableButton = MiscTab:AddButton({
+    Title = "Apply Speed to Unwalkable Emotes",
+    Callback = function()
+        if not itemsFolder then return end
+        
+        local emotesFolder = itemsFolder:FindFirstChild("Emotes")
+        if not emotesFolder then return end
+        
+        local speedValue = featureStates.EmoteSpeedValue or 2
+        
+        for _, emoteModule in ipairs(emotesFolder:GetChildren()) do
+            if emoteModule:IsA("ModuleScript") then
+                local success, emoteData = pcall(require, emoteModule)
+                if success and emoteData and emoteData.EmoteInfo and emoteData.EmoteInfo.SpeedMult == 0 then
+                    emoteData.EmoteInfo.SpeedMult = speedValue
+                end
+            end
+        end
+    end
+})
+
+ResetEmoteSpeedButton = MiscTab:AddButton({
+    Title = "Reset Emote Speed",
+    Callback = function()
+        Fluent:Notify({
+            Title = "Emote Speed",
+            Content = "Resetting emote speeds...",
+            Duration = 3
+        })
+        restoreOriginalEmoteSpeeds()
+        resetMultiplierSpeed()
+    end
+})
+
+local infiniteSlideEnabled = false
+local slideFrictionValue = -8
+local movementTables = {}
+local infiniteSlideHeartbeat = nil
+local infiniteSlideCharacterConn = nil
+local RunService = game:GetService("RunService")
+local player = game:GetService("Players").LocalPlayer
+
+local requiredKeys = {
+    "Friction","AirStrafeAcceleration","JumpHeight","RunDeaccel",
+    "JumpSpeedMultiplier","JumpCap","SprintCap","WalkSpeedMultiplier",
+    "BhopEnabled","Speed","AirAcceleration","RunAccel","SprintAcceleration"
+}
+
+local function hasRequiredFields(tbl)
+    if typeof(tbl) ~= "table" then return false end
+    for _, key in ipairs(requiredKeys) do
+        if rawget(tbl, key) == nil then return false end
+    end
+    return true
+end
+
+local function findMovementTables()
+    movementTables = {}
+    for _, obj in ipairs(getgc(true)) do
+        if hasRequiredFields(obj) then
+            table.insert(movementTables, obj)
+        end
+    end
+    return #movementTables > 0
+end
+
+local function setSlideFriction(value)
+    local appliedCount = 0
+    for _, tbl in ipairs(movementTables) do
+        pcall(function()
+            tbl.Friction = value
+            appliedCount = appliedCount + 1
+        end)
+    end
+    if appliedCount == 0 then
+        for _, obj in ipairs(getgc(true)) do
+            if hasRequiredFields(obj) then
+                pcall(function()
+                    obj.Friction = value
+                end)
+            end
+        end
+    end
+end
+
+local function updatePlayerModel()
+    local gameFolder = workspace:FindFirstChild("Game")
+    if not gameFolder then return false end
+    
+    local playersFolder = gameFolder:FindFirstChild("Players")
+    if not playersFolder then return false end
+    
+    local playerModel = playersFolder:FindFirstChild(player.Name)
+    return playerModel
+end
+
+local function infiniteSlideHeartbeatFunc()
+    if not infiniteSlideEnabled then return end
+    
+    local playerModel = updatePlayerModel()
+    if not playerModel then return end
+    
+    local state = playerModel:GetAttribute("State")
+    
+    if state == "Slide" then
+        pcall(function()
+            playerModel:SetAttribute("State", "EmotingSlide")
+        end)
+    elseif state == "EmotingSlide" then
+        setSlideFriction(slideFrictionValue)
+    else
+        setSlideFriction(5)
+    end
+end
+
+local function onCharacterAddedSlide(character)
+    if not infiniteSlideEnabled then return end
+    
+    for i = 1, 5 do
+        task.wait(0.5)
+        if updatePlayerModel() then
+            break
+        end
+    end
+    
+    task.wait(0.5)
+    findMovementTables()
+end
+
+local function setInfiniteSlide(enabled)
+    infiniteSlideEnabled = enabled
+
+    if enabled then
+        findMovementTables()
+        updatePlayerModel()
+        
+        if not infiniteSlideCharacterConn then
+            infiniteSlideCharacterConn = player.CharacterAdded:Connect(onCharacterAddedSlide)
+        end
+        
+        if player.Character then
+            task.spawn(function()
+                onCharacterAddedSlide(player.Character)
+            end)
+        end
+        
+        if infiniteSlideHeartbeat then infiniteSlideHeartbeat:Disconnect() end
+        infiniteSlideHeartbeat = RunService.Heartbeat:Connect(infiniteSlideHeartbeatFunc)
+        
+    else
+        if infiniteSlideHeartbeat then
+            infiniteSlideHeartbeat:Disconnect()
+            infiniteSlideHeartbeat = nil
+        end
+        
+        if infiniteSlideCharacterConn then
+            infiniteSlideCharacterConn:Disconnect()
+            infiniteSlideCharacterConn = nil
+        end
+        
+        setSlideFriction(5)
+        movementTables = {}
+    end
+end
+
+InfiniteSlideToggle = MiscTab:AddToggle("InfiniteSlideToggle", {
+    Title = "Sprint Slide",
+    Default = false,
+    Callback = function(Value)
+        setInfiniteSlide(Value)
+    end
+})
+
+SlideFrictionInput = MiscTab:AddInput("SlideFrictionInput", {
+    Title = "Slide Speed (Negative only)",
+    Default = "-8",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num then
+            slideFrictionValue = num
+            if infiniteSlideEnabled then
+                setSlideFriction(slideFrictionValue)
+            end
+        end
+    end
+})
+MiscTab:AddParagraph({
+    Title = "",
+    Content = ""
+})
+
+local gravityEnabled = false
+local originalGravity = workspace.Gravity
+local gravityValue = 10
+local gravityHeartbeat = nil
+local gravityKeybindValue = "G"
+
+local function createGravityButton()
+    local CoreGui = game:GetService("CoreGui")
+    local existingScreenGui = CoreGui:FindFirstChild("GravityButtonGUI")
+    
+    if existingScreenGui then
+        existingScreenGui:Destroy()
+    else
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "GravityButtonGUI"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = CoreGui
+        
+        local buttonSize = 200
+        local btnWidth = math.max(150, math.min(buttonSize, 400))
+        local btnHeight = math.max(60, math.min(buttonSize * 0.4, 160))
+        
+        local btn, clicker, stroke = createGradientButton(
+            screenGui,
+            UDim2.new(0.5, -btnWidth/2, 0.5, 60),
+            UDim2.new(0, btnWidth, 0, btnHeight),
+            gravityEnabled and "Gravity:On" or "Gravity:Off"
+        )
+        
+        clicker.MouseButton1Click:Connect(function()
+            gravityEnabled = not gravityEnabled
+            if btn:FindFirstChild("TextLabel") then
+                btn.TextLabel.Text = gravityEnabled and "Gravity:On" or "Gravity:Off"
+            end
+            
+            if gravityEnabled then
+                workspace.Gravity = gravityValue
+            else
+                workspace.Gravity = originalGravity
+            end
+        end)
+    end
+end
+
+local function toggleGravity()
+    gravityEnabled = not gravityEnabled
+    
+    if gravityEnabled then
+        workspace.Gravity = gravityValue
+    else
+        workspace.Gravity = originalGravity
+    end
+    
+    if Options.GravityButtonToggle and Options.GravityButtonToggle.Value then
+        createGravityButton()
+    end
+end
+
+GravityToggle = MiscTab:AddToggle("GravityToggle", {
+    Title = "Gravity",
+    Default = false,
+    Callback = function(Value)
+        gravityEnabled = Value
+        
+        if Value then
+            workspace.Gravity = gravityValue
+        else
+            workspace.Gravity = originalGravity
+        end
+    end
+})
+
+GravityButtonToggle = MiscTab:AddToggle("GravityButtonToggle", {
+    Title = "Gravity Button GUI",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            createGravityButton()
+        else
+            local CoreGui = game:GetService("CoreGui")
+            local existingScreenGui = CoreGui:FindFirstChild("GravityButtonGUI")
+            if existingScreenGui then
+                existingScreenGui:Destroy()
+            end
+        end
+    end
+})
+
+GravityKeybind = MiscTab:AddKeybind("GravityKeybind", {
+    Title = "Gravity Keybind",
+    Mode = "Toggle",
+    Default = "G",
+    ChangedCallback = function(New)
+        gravityKeybindValue = New
+    end,
+    Callback = function()
+        toggleGravity()
+    end
+})
+
+GravityAdjustmentInput = MiscTab:AddInput("GravityAdjustmentInput", {
+    Title = "Gravity Adjustment",
+    Default = "10",
+    Placeholder = "Enter gravity value",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and num > 0 then
+            gravityValue = num
+            if gravityEnabled then
+                workspace.Gravity = gravityValue
+            end
+        end
+    end
+})
+
+originalGravity = workspace.Gravity
+
+GravityToggle:OnChanged(function(state)
+    if Options.GravityButtonToggle and Options.GravityButtonToggle.Value then
+        local CoreGui = game:GetService("CoreGui")
+        local screenGui = CoreGui:FindFirstChild("GravityButtonGUI")
+        if screenGui then
+            local button = screenGui:FindFirstChild("GradientBtn")
+            if button and button:FindFirstChild("TextLabel") then
+                button.TextLabel.Text = state and "Gravity:On" or "Gravity:Off"
+            end
+        end
+    end
+end)
+GravityButtonSizeInput = MiscTab:AddInput("GravityButtonSizeInput", {
+    Title = "Gravity Button Size",
+    Default = "1",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        if Value and tonumber(Value) then
+            local scale = tonumber(Value)
+            scale = math.max(0.5, math.min(scale, 3.0))
+            
+            local CoreGui = game:GetService("CoreGui")
+            local existingScreenGui = CoreGui:FindFirstChild("GravityButtonGUI")
+            
+            if existingScreenGui then
+                local button = existingScreenGui:FindFirstChild("GradientBtn")
+                if button then
+                    local uiScale = button:FindFirstChild("UIScale") or Instance.new("UIScale")
+                    uiScale.Scale = scale
+                    uiScale.Parent = button
+                end
+            end
+        end
+    end
+})
+MiscTab:AddParagraph({
+    Title = "Heads up: Turn off infinite slide when bhopping to get better trims blah blah blah",
+    Content = ""
+})
+
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
