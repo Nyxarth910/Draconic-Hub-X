@@ -3492,12 +3492,2029 @@ MiscTab:AddParagraph({
     Content = ""
 })
 
-SaveManager:SetLibrary(Fluent)
+local player = game:GetService("Players").LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+getgenv().autoJumpType = "Bounce"
+getgenv().bhopMode = "Acceleration"
+getgenv().bhopAccelValue = -0.5
+getgenv().bhopHoldActive = false
+getgenv().autoJumpEnabled = false
+getgenv().jumpCooldown = 0.7
+
+featureStates = featureStates or {}
+featureStates.Bhop = false
+featureStates.BhopHold = false
+
+local isMobile = UserInputService.TouchEnabled
+local bhopConnection = nil
+local bhopLoaded = false
+local bhopKeyConnection = nil
+local characterConnection = nil
+local frictionTables = {}
+local Character = nil
+local Humanoid = nil
+local HumanoidRootPart = nil
+local LastJump = 0
+local GROUND_CHECK_DISTANCE = 3.5
+local MAX_SLOPE_ANGLE = 45
+local bhopButtonScreenGui = nil
+
+local function findFrictionTables()
+    frictionTables = {}
+    for _, t in pairs(getgc(true)) do
+        if type(t) == "table" and rawget(t, "Friction") then
+            table.insert(frictionTables, {obj = t, original = t.Friction})
+        end
+    end
+end
+
+local function setFriction(value)
+    for _, e in ipairs(frictionTables) do
+        if e.obj and type(e.obj) == "table" and rawget(e.obj, "Friction") then
+            e.obj.Friction = value
+        end
+    end
+end
+
+local function resetBhopFriction()
+    for _, e in ipairs(frictionTables) do
+        if e.obj and type(e.obj) == "table" and rawget(e.obj, "Friction") then
+            e.obj.Friction = e.original
+        end
+    end
+    frictionTables = {}
+end
+
+local function applyBhopFriction()
+    if not (getgenv().autoJumpEnabled or getgenv().bhopHoldActive) then
+        resetBhopFriction()
+        return
+    end
+    
+    if getgenv().bhopMode == "Acceleration" then
+        findFrictionTables()
+        if #frictionTables > 0 then
+            setFriction(getgenv().bhopAccelValue or -0.5)
+        end
+    else
+        resetBhopFriction()
+    end
+end
+
+local function IsOnGround()
+    if not Character or not HumanoidRootPart or not Humanoid then return false end
+
+    local state = Humanoid:GetState()
+    if state == Enum.HumanoidStateType.Jumping or 
+       state == Enum.HumanoidStateType.Freefall or
+       state == Enum.HumanoidStateType.Swimming then
+        return false
+    end
+
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {Character}
+    raycastParams.IgnoreWater = true
+
+    local rayOrigin = HumanoidRootPart.Position
+    local rayDirection = Vector3.new(0, -GROUND_CHECK_DISTANCE, 0)
+    local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
+    if not raycastResult then return false end
+
+    local surfaceNormal = raycastResult.Normal
+    local angle = math.deg(math.acos(surfaceNormal:Dot(Vector3.new(0, 1, 0))))
+
+    return angle <= MAX_SLOPE_ANGLE
+end
+
+local function updateBhop()
+    if not bhopLoaded then return end
+    
+    local character = player.Character
+    local humanoid = character and character:FindFirstChild("Humanoid")
+    if not character or not humanoid then
+        return
+    end
+
+    local isBhopActive = getgenv().autoJumpEnabled or getgenv().bhopHoldActive
+
+    if isBhopActive then
+        local now = tick()
+        if IsOnGround() and (now - LastJump) > getgenv().jumpCooldown then
+            if getgenv().autoJumpType == "Realistic" then
+                player.PlayerScripts.Events.temporary_events.JumpReact:Fire()
+                task.wait(0.1)
+                player.PlayerScripts.Events.temporary_events.EndJump:Fire()
+            else
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+            LastJump = now
+        end
+    end
+end
+
+local function loadBhop()
+    if bhopLoaded then return end
+    
+    bhopLoaded = true
+    
+    if bhopConnection then
+        bhopConnection:Disconnect()
+    end
+    bhopConnection = RunService.Heartbeat:Connect(updateBhop)
+    applyBhopFriction()
+end
+
+local function unloadBhop()
+    if not bhopLoaded then return end
+    
+    bhopLoaded = false
+    
+    if bhopConnection then
+        bhopConnection:Disconnect()
+        bhopConnection = nil
+    end
+    
+    getgenv().bhopHoldActive = false
+    resetBhopFriction() 
+end
+
+local function checkBhopState()
+    local shouldLoad = getgenv().autoJumpEnabled or getgenv().bhopHoldActive
+    
+    if shouldLoad then
+        loadBhop()
+    else
+        unloadBhop()
+    end
+end
+
+local function reapplyBhopOnRespawn()
+    if getgenv().autoJumpEnabled or getgenv().bhopHoldActive then
+        task.wait(0.5)
+        applyBhopFriction()
+        checkBhopState()
+    end
+end
+
+local function createBhopGradientButton()
+    local CoreGui = game:GetService("CoreGui")
+    
+    if bhopButtonScreenGui then
+        bhopButtonScreenGui:Destroy()
+        bhopButtonScreenGui = nil
+    end
+    
+    bhopButtonScreenGui = Instance.new("ScreenGui")
+    bhopButtonScreenGui.Name = "BhopButtonGUI"
+    bhopButtonScreenGui.ResetOnSpawn = false
+    bhopButtonScreenGui.Parent = CoreGui
+    
+    local buttonSize = 200
+    local btnWidth = math.max(150, math.min(buttonSize, 400))
+    local btnHeight = math.max(60, math.min(buttonSize * 0.4, 160))
+    
+    local btn, clicker, stroke = createGradientButton(
+        bhopButtonScreenGui,
+        UDim2.new(0.5, -btnWidth/2, 0.5, 120),
+        UDim2.new(0, btnWidth, 0, btnHeight),
+        getgenv().autoJumpEnabled and "Auto Jump: On" or "Auto Jump: Off"
+    )
+    
+    clicker.MouseButton1Click:Connect(function()
+        getgenv().autoJumpEnabled = not getgenv().autoJumpEnabled
+        featureStates.Bhop = getgenv().autoJumpEnabled
+        
+        if btn:FindFirstChild("TextLabel") then
+            btn.TextLabel.Text = getgenv().autoJumpEnabled and "Auto Jump: On" or "Auto Jump: Off"
+        end
+        
+        if Options.BhopToggle then
+            Options.BhopToggle:SetValue(getgenv().autoJumpEnabled)
+        end
+        
+        checkBhopState() 
+    end)
+    
+    return bhopButtonScreenGui
+end
+
+local function updateBhopButtonText()
+    if bhopButtonScreenGui and bhopButtonScreenGui:FindFirstChild("GradientBtn") then
+        local button = bhopButtonScreenGui:FindFirstChild("GradientBtn")
+        if button and button:FindFirstChild("TextLabel") then
+            button.TextLabel.Text = getgenv().autoJumpEnabled and "Auto Jump: On" or "Auto Jump: Off"
+        end
+    end
+end
+
+local function setupJumpButton()
+    local success, err = pcall(function()
+        local touchGui = player:WaitForChild("PlayerGui", 5):WaitForChild("TouchGui", 5)
+        if not touchGui then return end
+        local touchControlFrame = touchGui:WaitForChild("TouchControlFrame", 5)
+        if not touchControlFrame then return end
+        local jumpButton = touchControlFrame:WaitForChild("JumpButton", 5)
+        if not jumpButton then return end
+        
+        jumpButton.MouseButton1Down:Connect(function()
+            if featureStates.BhopHold then
+                getgenv().bhopHoldActive = true
+                checkBhopState()
+            end
+        end)
+        
+        jumpButton.MouseButton1Up:Connect(function()
+            getgenv().bhopHoldActive = false
+            checkBhopState()
+        end)
+    end)
+end
+
+AutoJumpTypeDropdown = MiscTab:AddDropdown("AutoJumpTypeDropdown", {
+    Title = "Auto Jump Type",
+    Values = {"Bounce", "Realistic"},
+    Multi = false,
+    Default = "Bounce",
+    Callback = function(Value)
+        getgenv().autoJumpType = Value
+    end
+})
+
+BhopToggle = MiscTab:AddToggle("BhopToggle", {
+    Title = "Bunny Hop",
+    Default = false,
+    Callback = function(Value)
+        featureStates.Bhop = Value
+        getgenv().autoJumpEnabled = Value
+        
+        updateBhopButtonText()
+        checkBhopState() 
+    end
+})
+
+BhopHoldToggle = MiscTab:AddToggle("BhopHoldToggle", {
+    Title = "Bhop Hold (Hold Space/Jump)",
+    Default = false,
+    Callback = function(Value)
+        featureStates.BhopHold = Value
+        if not Value then
+            getgenv().bhopHoldActive = false
+            checkBhopState() 
+        end
+    end
+})
+
+BhopButtonToggle = MiscTab:AddToggle("BhopButtonToggle", {
+    Title = "Bhop Button GUI",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            createBhopGradientButton()
+        else
+            if bhopButtonScreenGui then
+                bhopButtonScreenGui:Destroy()
+                bhopButtonScreenGui = nil
+            end
+        end
+    end
+})
+
+BhopKeybind = MiscTab:AddKeybind("BhopKeybind", {
+    Title = "Bhop Keybind",
+    Mode = "Toggle",
+    Default = "B",
+    ChangedCallback = function(New)
+    end,
+    Callback = function()
+        getgenv().autoJumpEnabled = not getgenv().autoJumpEnabled
+        featureStates.Bhop = getgenv().autoJumpEnabled
+        
+        if Options.BhopToggle then
+            Options.BhopToggle:SetValue(getgenv().autoJumpEnabled)
+        end
+        
+        updateBhopButtonText()
+        checkBhopState()
+    end
+})
+
+BhopModeDropdown = MiscTab:AddDropdown("BhopModeDropdown", {
+    Title = "Bhop Mode",
+    Values = {"Acceleration", "No Acceleration"},
+    Multi = false,
+    Default = "Acceleration",
+    Callback = function(Value)
+        getgenv().bhopMode = Value
+        checkBhopState()
+    end
+})
+
+BhopAccelInput = MiscTab:AddInput("BhopAccelInput", {
+    Title = "Bhop Acceleration",
+    Default = "-0.5",
+    Placeholder = "Enter negative value (e.g., -0.5)",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and string.sub(Value, 1, 1) == "-" then
+            getgenv().bhopAccelValue = num
+            if getgenv().autoJumpEnabled or getgenv().bhopHoldActive then
+                applyBhopFriction()
+            end
+        end
+    end
+})
+
+JumpCooldownInput = MiscTab:AddInput("JumpCooldownInput", {
+    Title = "Jump Cooldown (Seconds)",
+    Default = "0.7",
+    Placeholder = "Enter cooldown in seconds",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and num > 0 then
+            getgenv().jumpCooldown = num
+        end
+    end
+})
+
+RunService.Heartbeat:Connect(function()
+    if not Character or not Character:IsDescendantOf(workspace) then
+        Character = player.Character or player.CharacterAdded:Wait()
+        if Character then
+            Humanoid = Character:FindFirstChildOfClass("Humanoid")
+            HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+        else
+            Humanoid = nil
+            HumanoidRootPart = nil
+        end
+    end
+end)
+
+if characterConnection then
+    characterConnection:Disconnect()
+end
+characterConnection = player.CharacterAdded:Connect(function(character)
+    Character = character
+    Humanoid = character:WaitForChild("Humanoid")
+    HumanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    setupJumpButton()
+    reapplyBhopOnRespawn()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if input.KeyCode == Enum.KeyCode.Space and featureStates.BhopHold then
+        getgenv().bhopHoldActive = true
+        checkBhopState() 
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Space then
+        getgenv().bhopHoldActive = false
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        unloadBhop()
+        if bhopKeyConnection then
+            bhopKeyConnection:Disconnect()
+        end
+        if characterConnection then
+            characterConnection:Disconnect()
+        end
+    end
+end)
+
+task.spawn(function()
+    task.wait(1)
+    if Options.BhopButtonToggle and Options.BhopButtonToggle.Value then
+        createBhopGradientButton()
+    end
+end)
+MiscTab:AddSection("Utilities")
+
+local lagSwitchEnabled = false
+local lagSwitchKeybindValue = "F12"
+local lagDelayValue = 0.1
+local lagIntensity = 1000000
+local isLagActive = false
+
+local function performMathLag()
+    local startTime = tick()
+    local duration = lagDelayValue
+    
+    while tick() - startTime < duration do
+        for i = 1, lagIntensity do
+            local a = math.random(1, 1000000) * math.random(1, 1000000)
+            a = a / math.random(1, 10000)
+            local b = math.sqrt(math.random(1, 1000000))
+            b = b * math.pi * math.exp(1)
+            local c = math.sin(math.rad(math.random(1, 360))) * math.cos(math.rad(math.random(1, 360)))
+        end
+    end
+end
+
+local function toggleLagSwitch()
+    if not isLagActive then
+        isLagActive = true
+        task.spawn(function()
+            performMathLag()
+            isLagActive = false
+        end)
+    end
+end
+
+local function createLagSwitchButton()
+    local CoreGui = game:GetService("CoreGui")
+    local existingScreenGui = CoreGui:FindFirstChild("LagSwitchButtonGUI")
+    
+    if existingScreenGui then
+        existingScreenGui:Destroy()
+    else
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "LagSwitchButtonGUI"
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = CoreGui
+        
+        local buttonSize = 200
+        local btnWidth = math.max(150, math.min(buttonSize, 400))
+        local btnHeight = math.max(60, math.min(buttonSize * 0.4, 160))
+        
+        local btn, clicker, stroke = createGradientButton(
+            screenGui,
+            UDim2.new(0.5, -btnWidth/2, 0.5, 1),
+            UDim2.new(0, btnWidth, 0, btnHeight),
+            "Lag Switch"
+        )
+        
+        clicker.MouseButton1Click:Connect(function()
+            toggleLagSwitch()
+        end)
+    end
+end
+
+LagSwitchButtonToggle = MiscTab:AddToggle("LagSwitchButtonToggle", {
+    Title = "Lag Switch Button",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            createLagSwitchButton()
+        else
+            local CoreGui = game:GetService("CoreGui")
+            local existingScreenGui = CoreGui:FindFirstChild("LagSwitchButtonGUI")
+            if existingScreenGui then
+                existingScreenGui:Destroy()
+            end
+        end
+    end
+})
+
+LagSwitchKeybind = MiscTab:AddKeybind("LagSwitchKeybind", {
+    Title = "Lag Switch Keybind",
+    Mode = "Toggle",
+    Default = "F12",
+    ChangedCallback = function(New)
+        lagSwitchKeybindValue = New
+        
+        local CoreGui = game:GetService("CoreGui")
+        local screenGui = CoreGui:FindFirstChild("LagSwitchButtonGUI")
+        if screenGui then
+            local button = screenGui:FindFirstChild("GradientBtn")
+            if button and button:FindFirstChild("TextLabel") then
+                button.TextLabel.Text = "Lag Switch"
+            end
+        end
+    end,
+    Callback = function()
+        toggleLagSwitch()
+    end
+})
+
+LagDelayInput = MiscTab:AddInput("LagDelayInput", {
+    Title = "Lag Delay (Seconds)",
+    Default = "0.1",
+    Placeholder = "Enter delay in seconds",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and num > 0 and num <= 5 then
+            lagDelayValue = num
+        end
+    end
+})
+
+LagIntensityInput = MiscTab:AddInput("LagIntensityInput", {
+    Title = "Lag Intensity",
+    Default = "1000000",
+    Placeholder = "Enter intensity (1000-10000000)",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num and num >= 1000 and num <= 10000000 then
+            lagIntensity = num
+        end
+    end
+})
+
+TriggerLagSwitchButton = MiscTab:AddButton({
+    Title = "Trigger Lag Switch",
+    Callback = function()
+        toggleLagSwitch()
+    end
+})
+
+LagSwitchKeybind:OnChanged(function()
+    if Options.LagSwitchButtonToggle and Options.LagSwitchButtonToggle.Value then
+        local CoreGui = game:GetService("CoreGui")
+        local screenGui = CoreGui:FindFirstChild("LagSwitchButtonGUI")
+        if screenGui then
+            local button = screenGui:FindFirstChild("GradientBtn")
+            if button and button:FindFirstChild("TextLabel") then
+                button.TextLabel.Text = "Lag Switch"
+            end
+        end
+    end
+end)
+LagSwitchScaleInput = MiscTab:AddInput("LagSwitchScaleInput", {
+    Title = "Lag Switch Button Scale",
+    Default = "1.0",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        if Value and tonumber(Value) then
+            local scale = tonumber(Value)
+            local CoreGui = game:GetService("CoreGui")
+            local existingScreenGui = CoreGui:FindFirstChild("LagSwitchButtonGUI")
+            
+            if existingScreenGui then
+                local button = existingScreenGui:FindFirstChild("GradientBtn")
+                if button then
+                    local uiScale = button:FindFirstChild("UIScale") or Instance.new("UIScale")
+                    uiScale.Scale = math.max(0.5, math.min(scale, 3.0))
+                    uiScale.Parent = button
+                end
+            end
+        end
+    end
+})
+MiscTab:AddSection("Client Modification")
+
+FullBrightToggle = MiscTab:AddToggle("FullBrightToggle", {
+    Title = "Full Bright",
+    Default = false,
+    Callback = function(state)
+        featureStates.FullBright = state
+        if state then
+            local Lighting = game:GetService("Lighting")
+            
+            featureStates.originalBrightness = Lighting.Brightness
+            featureStates.originalAmbient = Lighting.Ambient
+            featureStates.originalOutdoorAmbient = Lighting.OutdoorAmbient
+            featureStates.originalColorShiftBottom = Lighting.ColorShift_Bottom
+            featureStates.originalColorShiftTop = Lighting.ColorShift_Top
+            
+            local function applyFullBright()
+                if Lighting.Brightness ~= 1 then
+                    Lighting.Brightness = 1
+                end
+                if Lighting.Ambient ~= Color3.new(1, 1, 1) then
+                    Lighting.Ambient = Color3.new(1, 1, 1)
+                end
+                if Lighting.OutdoorAmbient ~= Color3.new(1, 1, 1) then
+                    Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+                end
+                if Lighting.ColorShift_Bottom ~= Color3.new(1, 1, 1) then
+                    Lighting.ColorShift_Bottom = Color3.new(1, 1, 1)
+                end
+                if Lighting.ColorShift_Top ~= Color3.new(1, 1, 1) then
+                    Lighting.ColorShift_Top = Color3.new(1, 1, 1)
+                end
+            end
+            
+            applyFullBright()
+            
+            if featureStates.fullBrightConnection then
+                featureStates.fullBrightConnection:Disconnect()
+            end
+            
+            featureStates.fullBrightConnection = RunService.Heartbeat:Connect(function()
+                if featureStates.FullBright then
+                    applyFullBright()
+                end
+            end)
+            
+            featureStates.fullBrightCharConnection = game.Players.LocalPlayer.CharacterAdded:Connect(function()
+                task.wait(1)
+                if featureStates.FullBright then
+                    applyFullBright()
+                end
+            end)
+            
+        else
+            if featureStates.fullBrightConnection then
+                featureStates.fullBrightConnection:Disconnect()
+                featureStates.fullBrightConnection = nil
+            end
+            
+            if featureStates.fullBrightCharConnection then
+                featureStates.fullBrightCharConnection:Disconnect()
+                featureStates.fullBrightCharConnection = nil
+            end
+            
+            if featureStates.originalBrightness then
+                local Lighting = game:GetService("Lighting")
+                Lighting.Brightness = featureStates.originalBrightness
+                Lighting.Ambient = featureStates.originalAmbient
+                Lighting.OutdoorAmbient = featureStates.originalOutdoorAmbient
+                Lighting.ColorShift_Bottom = featureStates.originalColorShiftBottom
+                Lighting.ColorShift_Top = featureStates.originalColorShiftTop
+            end
+        end
+    end
+})
+
+AntiLag1 = MiscTab:AddButton({
+    Title = "Anti lag 1",
+    Callback = function()
+        local Lighting = game:GetService("Lighting")
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 1e10
+        Lighting.Brightness = 1
+
+        if Terrain then
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 1
+        end
+
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                obj.Material = Enum.Material.Plastic
+                obj.Reflectance = 0
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                obj:Destroy()
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                obj:Destroy()
+            elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+                obj:Destroy()
+            end
+        end
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            local char = player.Character
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("Accessory") or part:IsA("Clothing") then
+                        part:Destroy()
+                    end
+                end
+            end
+        end
+    end
+})
+
+AntiLag2 = MiscTab:AddButton({
+    Title = "Anti lag 2",
+    Callback = function()
+        local ToDisable = {
+            Textures = true,
+            VisualEffects = true,
+            Parts = true,
+            Particles = true,
+            Sky = true
+        }
+
+        local ToEnable = {
+            FullBright = false
+        }
+
+        local Stuff = {}
+
+        for _, v in next, game:GetDescendants() do
+            if ToDisable.Parts then
+                if v:IsA("Part") or v:IsA("UnionOperation") or v:IsA("BasePart") then
+                    v.Material = Enum.Material.SmoothPlastic
+                    table.insert(Stuff, 1, v)
+                end
+            end
+            
+            if ToDisable.Particles then
+                if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Explosion") or v:IsA("Sparkles") or v:IsA("Fire") then
+                    v.Enabled = false
+                    table.insert(Stuff, 1, v)
+                end
+            end
+            
+            if ToDisable.VisualEffects then
+                if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("DepthOfFieldEffect") or v:IsA("SunRaysEffect") then
+                    v.Enabled = false
+                    table.insert(Stuff, 1, v)
+                end
+            end
+            
+            if ToDisable.Textures then
+                if v:IsA("Decal") or v:IsA("Texture") then
+                    v.Texture = ""
+                    table.insert(Stuff, 1, v)
+                end
+            end
+            
+            if ToDisable.Sky then
+                if v:IsA("Sky") then
+                    v.Parent = nil
+                    table.insert(Stuff, 1, v)
+                end
+            end
+        end
+
+        if ToEnable.FullBright then
+            local Lighting = game:GetService("Lighting")
+            
+            Lighting.FogColor = Color3.fromRGB(255, 255, 255)
+            Lighting.FogEnd = math.huge
+            Lighting.FogStart = math.huge
+            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            Lighting.Brightness = 5
+            Lighting.ColorShift_Bottom = Color3.fromRGB(255, 255, 255)
+            Lighting.ColorShift_Top = Color3.fromRGB(255, 255, 255)
+            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+            Lighting.Outlines = true
+        end
+    end 
+})
+
+AntiLag3 = MiscTab:AddButton({
+    Title = "Remove Texture",
+    Callback = function()
+        for _, part in ipairs(workspace:GetDescendants()) do
+            if part:IsA("Part") or part:IsA("MeshPart") or part:IsA("UnionOperation") or part:IsA("WedgePart") or part:IsA("CornerWedgePart") then
+                if part:IsA("Part") then
+                    part.Material = Enum.Material.SmoothPlastic
+                end
+                if part:FindFirstChildWhichIsA("Texture") then
+                    local texture = part:FindFirstChildWhichIsA("Texture")
+                    texture.Texture = "rbxassetid://0"
+                end
+                if part:FindFirstChildWhichIsA("Decal") then
+                    local decal = part:FindFirstChildWhichIsA("Decal")
+                    decal.Texture = "rbxassetid://0"
+                end
+            end
+        end
+    end
+})
+
+NoFogToggle = MiscTab:AddToggle("NoFogToggle", {
+    Title = "Remove fog",
+    Default = false,
+    Callback = function(state)
+        local Lighting = game:GetService("Lighting")
+        if state then
+            featureStates.originalFogEnd = Lighting.FogEnd
+            featureStates.originalAtmospheres = {}
+            
+            for _, atmosphere in ipairs(Lighting:GetChildren()) do
+                if atmosphere:IsA("Atmosphere") then
+                    table.insert(featureStates.originalAtmospheres, atmosphere:Clone())
+                end
+            end
+            
+            Lighting.FogEnd = 1000000
+            for _, v in pairs(Lighting:GetDescendants()) do
+                if v:IsA("Atmosphere") then
+                    v:Destroy()
+                end
+            end
+        else
+            if featureStates.originalFogEnd then
+                Lighting.FogEnd = featureStates.originalFogEnd
+            end
+            
+            if featureStates.originalAtmospheres then
+                for _, atmosphere in ipairs(featureStates.originalAtmospheres) do
+                    if not atmosphere.Parent then
+                        local newAtmosphere = Instance.new("Atmosphere")
+                        for _, prop in pairs({"Density", "Offset", "Color", "Decay", "Glare", "Haze"}) do
+                            if atmosphere[prop] then
+                                newAtmosphere[prop] = atmosphere[prop]
+                            end
+                        end
+                        newAtmosphere.Parent = Lighting
+                    end
+                end
+            end
+        end
+    end
+})
+VisualsTab = Window:AddTab({ Title = "Visuals", Icon = "star" })
+VisualsTab:AddSection("Cosmetics Changer")
+
+cosmetic1 = ""
+cosmetic2 = ""
+originalCosmetic1 = ""
+originalCosmetic2 = ""
+isSwapped = false
+
+CurrentCosmeticsInput = VisualsTab:AddInput("CurrentCosmeticsInput", {
+    Title = "Current Cosmetics",
+    Default = "",
+    Placeholder = "Enter current cosmetic name",
+    Finished = false,
+    Callback = function(Value)
+        cosmetic1 = Value
+        if not isSwapped then
+            originalCosmetic1 = Value
+        end
+    end
+})
+
+SelectCosmeticsInput = VisualsTab:AddInput("SelectCosmeticsInput", {
+    Title = "Select Cosmetics",
+    Default = "",
+    Placeholder = "Enter cosmetic to swap with",
+    Finished = false,
+    Callback = function(Value)
+        cosmetic2 = Value
+        if not isSwapped then
+            originalCosmetic2 = Value
+        end
+    end
+})
+
+ApplyCosmeticsButton = VisualsTab:AddButton({
+    Title = "Apply Cosmetics",
+    Callback = function()
+        pcall(function()
+            if cosmetic1 == "" or cosmetic2 == "" or cosmetic1 == cosmetic2 then return end
+            
+            ReplicatedStorage = game:GetService("ReplicatedStorage")    
+            Cosmetics = ReplicatedStorage:WaitForChild("Items"):WaitForChild("Cosmetics")    
+            
+            function normalize(str)    
+                return str:gsub("%s+", ""):lower()    
+            end    
+            
+            function levenshtein(s, t)    
+                m = #s
+                n = #t
+                d = {}    
+                for i = 0, m do d[i] = {[0] = i} end    
+                for j = 0, n do d[0][j] = j end    
+                
+                for i = 1, m do    
+                    for j = 1, n do    
+                        cost = (s:sub(i,i) == t:sub(j,j)) and 0 or 1    
+                        d[i][j] = math.min(    
+                            d[i-1][j] + 1,    
+                            d[i][j-1] + 1,    
+                            d[i-1][j-1] + cost    
+                        )    
+                    end    
+                end    
+                return d[m][n]    
+            end    
+            
+            function similarity(s, t)    
+                nS = normalize(s)
+                nT = normalize(t)    
+                dist = levenshtein(nS, nT)    
+                return 1 - dist / math.max(#nS, #nT)    
+            end    
+            
+            function findSimilar(name)    
+                bestMatch = name    
+                bestScore = 0.5    
+                for _, c in ipairs(Cosmetics:GetChildren()) do    
+                    score = similarity(name, c.Name)    
+                    if score > bestScore then    
+                        bestScore = score    
+                        bestMatch = c.Name    
+                    end    
+                end    
+                return bestMatch    
+            end    
+            
+            cosmetic1 = findSimilar(cosmetic1)    
+            cosmetic2 = findSimilar(cosmetic2)    
+            
+            a = Cosmetics:FindFirstChild(cosmetic1)    
+            b = Cosmetics:FindFirstChild(cosmetic2)    
+            if not a or not b then return end    
+            
+            if not isSwapped then
+                originalCosmetic1 = cosmetic1
+                originalCosmetic2 = cosmetic2
+            end
+            
+            tempRoot = Instance.new("Folder", Cosmetics)    
+            tempRoot.Name = "__temp_swap_" .. tostring(tick()):gsub("%.", "_")    
+            
+            tempA = Instance.new("Folder", tempRoot)    
+            tempB = Instance.new("Folder", tempRoot)    
+            
+            for _, c in ipairs(a:GetChildren()) do c.Parent = tempA end    
+            for _, c in ipairs(b:GetChildren()) do c.Parent = tempB end    
+            
+            for _, c in ipairs(tempA:GetChildren()) do c.Parent = b end    
+            for _, c in ipairs(tempB:GetChildren()) do c.Parent = a end    
+            
+            tempRoot:Destroy()
+            
+            isSwapped = true
+            
+            Fluent:Notify({
+                Title = "Cosmetics Changer",
+                Content = "Successfully swapped " .. cosmetic1 .. " with " .. cosmetic2,
+                Duration = 3
+            })
+        end)    
+    end
+})
+
+ResetCosmeticsButton = VisualsTab:AddButton({
+    Title = "Reset Cosmetics",
+    Callback = function()
+        pcall(function()
+            if not isSwapped then
+                Fluent:Notify({
+                    Title = "Cosmetics Changer",
+                    Content = "No cosmetics have been swapped yet",
+                    Duration = 3
+                })
+                return
+            end
+            
+            if originalCosmetic1 == "" or originalCosmetic2 == "" then
+                Fluent:Notify({
+                    Title = "Cosmetics Changer",
+                    Content = "Original cosmetic names not found",
+                    Duration = 3
+                })
+                return
+            end
+            
+            ReplicatedStorage = game:GetService("ReplicatedStorage")    
+            Cosmetics = ReplicatedStorage:WaitForChild("Items"):WaitForChild("Cosmetics")    
+            
+            function normalize(str)    
+                return str:gsub("%s+", ""):lower()    
+            end    
+            
+            function findSimilar(name)    
+                bestMatch = name    
+                bestScore = 0.5    
+                for _, c in ipairs(Cosmetics:GetChildren()) do    
+                    normalizedInput = normalize(name)
+                    normalizedCosmetic = normalize(c.Name)
+                    if normalizedInput == normalizedCosmetic then
+                        return c.Name
+                    end
+                end    
+                return name
+            end    
+            
+            resetCosmetic1 = findSimilar(originalCosmetic1)
+            resetCosmetic2 = findSimilar(originalCosmetic2)
+            
+            a = Cosmetics:FindFirstChild(cosmetic1)    
+            b = Cosmetics:FindFirstChild(cosmetic2)    
+            
+            if a and b then
+                tempRoot = Instance.new("Folder", Cosmetics)    
+                tempRoot.Name = "__temp_reset_" .. tostring(tick()):gsub("%.", "_")    
+                
+                tempA = Instance.new("Folder", tempRoot)    
+                tempB = Instance.new("Folder", tempRoot)    
+                
+                for _, c in ipairs(a:GetChildren()) do c.Parent = tempA end    
+                for _, c in ipairs(b:GetChildren()) do c.Parent = tempB end    
+                
+                for _, c in ipairs(tempA:GetChildren()) do c.Parent = b end    
+                for _, c in ipairs(tempB:GetChildren()) do c.Parent = a end    
+                
+                tempRoot:Destroy()
+                
+                isSwapped = false
+                
+                Fluent:Notify({
+                    Title = "Cosmetics Changer",
+                    Content = "Successfully reset cosmetics to original state",
+                    Duration = 3
+                })
+            else
+                Fluent:Notify({
+                    Title = "Cosmetics Changer",
+                    Content = "Could not find swapped cosmetics to reset",
+                    Duration = 3
+                })
+            end
+        end)
+    end
+})
+
+VisualsTab:AddSection("CarryAnimation Replacer")
+
+currentCarryAnim = ""
+selectedCarryAnim = ""
+lastCurrentCarryAnim = ""
+lastSelectedCarryAnim = ""
+isSwapped = false
+
+function normalizeString(str)
+    return str:gsub("%s+", ""):lower()
+end
+
+function isValidCarryAnimation(name)
+    carryAnimations = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+    if not carryAnimations then return false end
+    carryAnimations = carryAnimations:FindFirstChild("CarryAnimations")
+    if not carryAnimations then return false end
+    
+    normalizedInput = normalizeString(name)
+    for _, anim in ipairs(carryAnimations:GetChildren()) do
+        if normalizeString(anim.Name) == normalizedInput then
+            return true, anim.Name
+        end
+    end
+    return false
+end
+
+function revertPreviousSwap()
+    if lastCurrentCarryAnim ~= "" and lastSelectedCarryAnim ~= "" and isSwapped then
+        carryAnimations = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+        if carryAnimations then
+            carryAnimations = carryAnimations:FindFirstChild("CarryAnimations")
+            if carryAnimations then
+                lastCurrentValid, lastCurrentActual = isValidCarryAnimation(lastCurrentCarryAnim)
+                lastSelectedValid, lastSelectedActual = isValidCarryAnimation(lastSelectedCarryAnim)
+                
+                if lastCurrentValid and lastSelectedValid then
+                    pcall(function()
+                        currentFolder = carryAnimations:FindFirstChild(lastCurrentActual)
+                        selectedFolder = carryAnimations:FindFirstChild(lastSelectedActual)
+                        
+                        if currentFolder and selectedFolder then
+                            tempRoot = Instance.new("Folder")
+                            tempRoot.Name = "__temp_revert_swap_" .. tostring(tick()):gsub("%.", "_")
+                            tempRoot.Parent = carryAnimations
+                            
+                            tempCurrent = Instance.new("Folder")
+                            tempCurrent.Name = "tempCurrent"
+                            tempCurrent.Parent = tempRoot
+                            
+                            tempSelected = Instance.new("Folder")
+                            tempSelected.Name = "tempSelected"
+                            tempSelected.Parent = tempRoot
+                            
+                            for _, child in ipairs(currentFolder:GetChildren()) do
+                                child.Parent = tempCurrent
+                            end
+                            
+                            for _, child in ipairs(selectedFolder:GetChildren()) do
+                                child.Parent = tempSelected
+                            end
+                            
+                            for _, child in ipairs(tempCurrent:GetChildren()) do
+                                child.Parent = selectedFolder
+                            end
+                            
+                            for _, child in ipairs(tempSelected:GetChildren()) do
+                                child.Parent = currentFolder
+                            end
+                            
+                            tempRoot:Destroy()
+                        end
+                    end)
+                end
+            end
+        end
+        isSwapped = false
+    end
+end
+
+CurrentCarryAnimInput = VisualsTab:AddInput("CurrentCarryAnimInput", {
+    Title = "Current CarryAnimation",
+    Default = "",
+    Placeholder = "Enter current carry animation name",
+    Finished = false,
+    Callback = function(Value)
+        if Value ~= currentCarryAnim and currentCarryAnim ~= "" then
+            revertPreviousSwap()
+        end
+        currentCarryAnim = Value
+    end
+})
+
+SelectedCarryAnimInput = VisualsTab:AddInput("SelectedCarryAnimInput", {
+    Title = "Selected CarryAnimation",
+    Default = "",
+    Placeholder = "Enter selected carry animation name",
+    Finished = false,
+    Callback = function(Value)
+        if Value ~= selectedCarryAnim and selectedCarryAnim ~= "" then
+            revertPreviousSwap()
+        end
+        selectedCarryAnim = Value
+    end
+})
+
+ApplyCarryAnimButton = VisualsTab:AddButton({
+    Title = "Apply CarryAnimation Swap",
+    Callback = function()
+        currentNorm = normalizeString(currentCarryAnim)
+        selectedNorm = normalizeString(selectedCarryAnim)
+        
+        if currentNorm == "" or selectedNorm == "" then
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "Both animation names must be filled",
+                Duration = 3
+            })
+            return
+        end
+        
+        if currentNorm == selectedNorm then
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "Animation names cannot be the same",
+                Duration = 3
+            })
+            return
+        end
+        
+        carryAnimations = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+        if not carryAnimations then
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "CarryAnimations folder not found",
+                Duration = 3
+            })
+            return
+        end
+        
+        carryAnimations = carryAnimations:FindFirstChild("CarryAnimations")
+        if not carryAnimations then
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "CarryAnimations folder not found",
+                Duration = 3
+            })
+            return
+        end
+        
+        currentAnim, currentActualName = isValidCarryAnimation(currentCarryAnim)
+        selectedAnim, selectedActualName = isValidCarryAnimation(selectedCarryAnim)
+        
+        if not currentAnim then
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "Current animation not found: " .. currentCarryAnim,
+                Duration = 3
+            })
+            return
+        end
+        
+        if not selectedAnim then
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "Selected animation not found: " .. selectedCarryAnim,
+                Duration = 3
+            })
+            return
+        end
+        
+        pcall(function()
+            revertPreviousSwap()
+            
+            currentFolder = carryAnimations:FindFirstChild(currentActualName)
+            selectedFolder = carryAnimations:FindFirstChild(selectedActualName)
+            
+            if not currentFolder or not selectedFolder then
+                Fluent:Notify({
+                    Title = "CarryAnimation Replacer",
+                    Content = "One or both animations not found in folder",
+                    Duration = 3
+                })
+                return
+            end
+            
+            tempRoot = Instance.new("Folder")
+            tempRoot.Name = "__temp_carry_swap_" .. tostring(tick()):gsub("%.", "_")
+            tempRoot.Parent = carryAnimations
+            
+            tempCurrent = Instance.new("Folder")
+            tempCurrent.Name = "tempCurrent"
+            tempCurrent.Parent = tempRoot
+            
+            tempSelected = Instance.new("Folder")
+            tempSelected.Name = "tempSelected"
+            tempSelected.Parent = tempRoot
+            
+            for _, child in ipairs(currentFolder:GetChildren()) do
+                child.Parent = tempCurrent
+            end
+            
+            for _, child in ipairs(selectedFolder:GetChildren()) do
+                child.Parent = tempSelected
+            end
+            
+            for _, child in ipairs(tempCurrent:GetChildren()) do
+                child.Parent = selectedFolder
+            end
+            
+            for _, child in ipairs(tempSelected:GetChildren()) do
+                child.Parent = currentFolder
+            end
+            
+            tempRoot:Destroy()
+            
+            lastCurrentCarryAnim = currentCarryAnim
+            lastSelectedCarryAnim = selectedCarryAnim
+            isSwapped = true
+            
+            Fluent:Notify({
+                Title = "CarryAnimation Replacer",
+                Content = "Successfully swapped " .. currentActualName .. " with " .. selectedActualName,
+                Duration = 3
+            })
+        end)
+    end
+})
+
+ResetCarryAnimButton = VisualsTab:AddButton({
+    Title = "Reset All CarryAnimations",
+    Callback = function()
+        revertPreviousSwap()
+        currentCarryAnim = ""
+        selectedCarryAnim = ""
+        lastCurrentCarryAnim = ""
+        lastSelectedCarryAnim = ""
+        isSwapped = false
+        CurrentCarryAnimInput:SetValue("")
+        SelectedCarryAnimInput:SetValue("")
+        Fluent:Notify({
+            Title = "CarryAnimation Replacer",
+            Content = "All animations reset to original",
+            Duration = 3
+        })
+    end
+})
+
+VisualsTab:AddSection("NameTag Changers")
+
+function updateNametagList()
+    nametagValues = {"Ignore", "None"}
+    nametagsFolder = game:GetService("ReplicatedStorage").Items.Nametags
+    
+    if nametagsFolder then
+        for _, nametagModule in ipairs(nametagsFolder:GetChildren()) do
+            if nametagModule:IsA("ModuleScript") then
+                success, nametagData = pcall(require, nametagModule)
+                if success and nametagData and nametagData.AppearanceInfo then
+                    table.insert(nametagValues, nametagData.AppearanceInfo.Name)
+                end
+            end
+        end
+    end
+    
+    return nametagValues
+end
+
+VisualNametagDropdown = VisualsTab:AddDropdown("VisualNametagDropdown", {
+    Title = "Visual Nametag",
+    Description = "Select nametag appearance",
+    Values = updateNametagList(),
+    Multi = false,
+    Default = "Ignore",
+    Callback = function(Value)
+        playerFolder = workspace.Game.Players:FindFirstChild(game.Players.LocalPlayer.Name)
+        if playerFolder then
+            if Value == "None" then
+                playerFolder:SetAttribute("Nametag", nil)
+            elseif Value ~= "Ignore" then
+                cleanValue = Value:gsub("%s+", "")
+                playerFolder:SetAttribute("Nametag", cleanValue)
+            end
+        end
+    end
+})
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
+    task.wait(1)
+    playerFolder = workspace.Game.Players:FindFirstChild(game.Players.LocalPlayer.Name)
+    if playerFolder and Options.VisualNametagDropdown and Options.VisualNametagDropdown.Value ~= "Ignore" then
+        if Options.VisualNametagDropdown.Value == "None" then
+            playerFolder:SetAttribute("Nametag", nil)
+        else
+            cleanValue = Options.VisualNametagDropdown.Value:gsub("%s+", "")
+            playerFolder:SetAttribute("Nametag", cleanValue)
+        end
+    end
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    playerFolder = workspace.Game.Players:FindFirstChild(game.Players.LocalPlayer.Name)
+    if playerFolder and Options.VisualNametagDropdown and Options.VisualNametagDropdown.Value ~= "Ignore" then
+        if Options.VisualNametagDropdown.Value == "None" then
+            playerFolder:SetAttribute("Nametag", nil)
+        else
+            cleanValue = Options.VisualNametagDropdown.Value:gsub("%s+", "")
+            currentTag = playerFolder:GetAttribute("Nametag")
+            if currentTag ~= cleanValue then
+                playerFolder:SetAttribute("Nametag", cleanValue)
+            end
+        end
+    end
+end)
+
+VisualsTab:AddSection("Fake Streaks")
+
+FakeStreaksInput = VisualsTab:AddInput("FakeStreaksInput", {
+    Title = "Fake Streaks",
+    Default = "",
+    Placeholder = "Enter streak value",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        num = tonumber(Value)
+        if num then
+            game:GetService("Players").LocalPlayer:SetAttribute("Streak", num)
+        end
+    end
+})
+
+task.spawn(function()
+    task.wait(1)
+    currentStreak = game:GetService("Players").LocalPlayer:GetAttribute("Streak")
+    if currentStreak then
+        FakeStreaksInput:SetValue(tostring(currentStreak))
+    end
+end)
+VisualsTab:AddSection("Emote Changer")
+
+player = game:GetService("Players").LocalPlayer
+ReplicatedStorage = game:GetService("ReplicatedStorage")
+Events = ReplicatedStorage:WaitForChild("Events", 10)
+CharacterFolder = Events and Events:WaitForChild("Character", 10)
+EmoteRemote = CharacterFolder and CharacterFolder:WaitForChild("Emote", 10)
+PassCharacterInfo = CharacterFolder and CharacterFolder:WaitForChild("PassCharacterInfo", 10)
+
+remoteSignal = PassCharacterInfo and PassCharacterInfo.OnClientEvent
+currentTag = nil
+currentEmotes = {}
+selectEmotes = {}
+emoteEnabled = {}
+currentEmoteInputs = {}
+selectEmoteInputs = {}
+
+for i = 1, 12 do
+    currentEmotes[i] = ""
+    selectEmotes[i] = ""
+    emoteEnabled[i] = false
+end
+
+function readTagFromFolder(f)
+    if not f then return nil end
+    tagAttribute = f:GetAttribute("Tag")
+    if tagAttribute ~= nil then 
+        return tagAttribute 
+    end
+    tagChild = f:FindFirstChild("Tag")
+    if tagChild and tagChild:IsA("ValueBase") then 
+        return tagChild.Value 
+    end
+    return nil
+end
+
+function onRespawn()
+    currentTag = nil
+    pendingSlot = nil
+    
+    task.spawn(function()
+        startTime = tick()
+        
+        while tick() - startTime < 10 do
+            if workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Players") then
+                playerFolder = workspace.Game.Players:FindFirstChild(player.Name)
+                if playerFolder then
+                    currentTag = readTagFromFolder(playerFolder)
+                    if currentTag then
+                        tagNumber = tonumber(currentTag)
+                        if tagNumber and tagNumber >= 0 and tagNumber <= 255 then
+                            print("Emote Changer: Found tag", tagNumber)
+                            break
+                        else
+                            currentTag = nil
+                        end
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+        
+        if not currentTag then
+            print("Emote Changer: Could not find tag after 10 seconds")
+        end
+    end)
+end
+
+pendingSlot = nil
+blockOriginalEmote = false
+
+function fireSelect(slot)
+    if not currentTag then 
+        print("Emote Changer: No current tag")
+        return 
+    end
+    
+    tagNumber = tonumber(currentTag)
+    if not tagNumber or tagNumber < 0 or tagNumber > 255 then 
+        print("Emote Changer: Invalid tag number", tagNumber)
+        return 
+    end
+    
+    if not selectEmotes[slot] or selectEmotes[slot] == "" then 
+        print("Emote Changer: No select emote for slot", slot)
+        return 
+    end
+    
+    print("Emote Changer: Firing emote", selectEmotes[slot], "for slot", slot, "tag", tagNumber)
+    
+    if remoteSignal then
+        pcall(function()
+            buf = buffer.create(2)
+            buffer.writeu8(buf, 0, tagNumber)
+            buffer.writeu8(buf, 1, 17)
+            firesignal(remoteSignal, buf, {selectEmotes[slot]})
+        end)
+    else
+        print("Emote Changer: remoteSignal is nil")
+    end
+end
+
+if PassCharacterInfo and EmoteRemote then
+    print("Emote Changer: Setting up emote changer...")
+    
+    PassCharacterInfo.OnClientEvent:Connect(function(...)
+        if not pendingSlot then return end
+        slot = pendingSlot
+        pendingSlot = nil
+        task.wait(0.1)
+        fireSelect(slot)
+    end)
+
+    success, oldNamecall = pcall(function()
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            methodName = getnamecallmethod()
+            args = {...}
+            
+            if methodName == "FireServer" and self == EmoteRemote and type(args[1]) == "string" then
+                print("Emote Changer: Detected emote fire:", args[1])
+                for i = 1, 12 do
+                    if emoteEnabled[i] and currentEmotes[i] ~= "" and args[1] == currentEmotes[i] then
+                        print("Emote Changer: Matched emote slot", i, args[1], "->", selectEmotes[i])
+                        pendingSlot = i
+                        blockOriginalEmote = true
+                        task.spawn(function()
+                            task.wait(0.1)
+                            blockOriginalEmote = false
+                            if pendingSlot == i then
+                                pendingSlot = nil
+                                fireSelect(i)
+                            end
+                        end)
+                        if blockOriginalEmote then
+                            print("Emote Changer: Blocking original emote")
+                            return nil
+                        end
+                    end
+                end
+            end
+            return oldNamecall(self, ...)
+        end)
+        return oldNamecall
+    end)
+
+    if success then
+        print("Emote Changer: Hook installed successfully")
+    else
+        warn("Emote Changer: Error hooking __namecall:", oldNamecall)
+    end
+    
+    if player.Character then
+        task.spawn(onRespawn)
+    end
+    
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        onRespawn()
+    end)
+    
+    if workspace:FindFirstChild("Game") and workspace.Game:FindFirstChild("Players") then
+        workspace.Game.Players.ChildAdded:Connect(function(child)
+            if child.Name == player.Name then
+                task.wait(0.5)
+                onRespawn()
+            end
+        end)
+        
+        workspace.Game.Players.ChildRemoved:Connect(function(child)
+            if child.Name == player.Name then
+                currentTag = nil
+                pendingSlot = nil
+            end
+        end)
+    end
+else
+    print("Emote Changer: Required remotes not found")
+end
+
+for i = 1, 12 do
+    currentEmoteInputs[i] = VisualsTab:AddInput("CurrentEmoteInput" .. i, {
+        Title = "Current Emote " .. i,
+        Default = "",
+        Placeholder = "Enter current emote name",
+        Finished = false,
+        Callback = function(Value)
+            currentEmotes[i] = Value:gsub("%s+", "")
+            print("Emote Changer: Set current emote " .. i .. " to: " .. currentEmotes[i])
+        end
+    })
+end
+
+VisualsTab:AddParagraph({ Title = "", Content = "" })
+
+for i = 1, 12 do
+    selectEmoteInputs[i] = VisualsTab:AddInput("SelectEmoteInput" .. i, {
+        Title = "Select Emote " .. i,
+        Default = "",
+        Placeholder = "Enter select emote name",
+        Finished = false,
+        Callback = function(Value)
+            selectEmotes[i] = Value:gsub("%s+", "")
+            print("Emote Changer: Set select emote " .. i .. " to: " .. selectEmotes[i])
+        end
+    })
+end
+
+VisualsEmoteApply = VisualsTab:AddButton({
+    Title = "Apply Emote Mappings",
+    Callback = function()
+        hasAnyEmote = false
+        
+        for i = 1, 12 do
+            if currentEmotes[i] ~= "" or selectEmotes[i] ~= "" then
+                hasAnyEmote = true
+                break
+            end
+        end
+        
+        if not hasAnyEmote then
+            Fluent:Notify({
+                Title = "Emote Changer",
+                Content = "Please enter your emote",
+                Duration = 3
+            })
+            return
+        end
+        
+        function normalizeEmoteName(name)
+            return name:gsub("%s+", ""):lower()
+        end
+        
+        function isValidEmote(emoteName)
+            if emoteName == "" then return false, "" end
+            
+            normalizedInput = normalizeEmoteName(emoteName)
+            ItemsFolder = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+            if ItemsFolder then
+                emotesFolder = ItemsFolder:FindFirstChild("Emotes")
+                if emotesFolder then
+                    for _, emoteModule in ipairs(emotesFolder:GetChildren()) do
+                        if emoteModule:IsA("ModuleScript") then
+                            normalizedEmote = normalizeEmoteName(emoteModule.Name)
+                            if normalizedEmote == normalizedInput then
+                                return true, emoteModule.Name
+                            end
+                        end
+                    end
+                end
+            end
+            return false, ""
+        end
+        
+        sameEmoteSlots = {}
+        missingEmoteSlots = {}
+        invalidEmoteSlots = {}
+        successfulSlots = {}
+        
+        for i = 1, 12 do
+            if currentEmotes[i] ~= "" and selectEmotes[i] ~= "" then
+                currentValid, currentActual = isValidEmote(currentEmotes[i])
+                selectValid, selectActual = isValidEmote(selectEmotes[i])
+                
+                if not currentValid and not selectValid then
+                    table.insert(invalidEmoteSlots, {slot = i, currentInvalid = true, currentName = currentEmotes[i], selectInvalid = true, selectName = selectEmotes[i]})
+                elseif not currentValid then
+                    table.insert(invalidEmoteSlots, {slot = i, currentInvalid = true, currentName = currentEmotes[i], selectInvalid = false, selectName = selectEmotes[i]})
+                elseif not selectValid then
+                    table.insert(invalidEmoteSlots, {slot = i, currentInvalid = false, currentName = currentEmotes[i], selectInvalid = true, selectName = selectEmotes[i]})
+                elseif currentActual:lower() == selectActual:lower() then
+                    table.insert(sameEmoteSlots, i)
+                else
+                    table.insert(successfulSlots, {slot = i, current = currentActual, select = selectActual})
+                end
+            elseif currentEmotes[i] ~= "" or selectEmotes[i] ~= "" then
+                table.insert(missingEmoteSlots, i)
+            end
+        end
+        
+        message = ""
+        
+        if #successfulSlots > 0 then
+            message = message .. "✓ Successfully applied emote on:\n"
+            for _, data in ipairs(successfulSlots) do
+                message = message .. "Slot " .. data.slot .. " Emote: " .. data.current .. " → " .. data.select .. "\n"
+                emoteEnabled[data.slot] = true
+                print("Emote Changer: Enabled slot", data.slot, data.current, "->", data.select)
+            end
+            message = message .. "\n"
+        end
+        
+        if #sameEmoteSlots > 0 then
+            message = message .. "✗ Failed to apply emote on:\n"
+            for _, slot in ipairs(sameEmoteSlots) do
+                message = message .. "Slot " .. slot .. " - Cannot change emote with the same name\n"
+                emoteEnabled[slot] = false
+            end
+            message = message .. "\n"
+        end
+        
+        if #invalidEmoteSlots > 0 then
+            message = message .. "✗ Failed to apply emote on:\n"
+            for _, data in ipairs(invalidEmoteSlots) do
+                message = message .. "Slot " .. data.slot .. " - "
+                if data.currentInvalid and data.selectInvalid then
+                    message = message .. "Invalid current emote: \"" .. data.currentName .. "\", Invalid select emote: \"" .. data.selectName .. "\"\n"
+                elseif data.currentInvalid then
+                    message = message .. "Invalid current emote: \"" .. data.currentName .. "\", Select emote: \"" .. data.selectName .. "\"\n"
+                else
+                    message = message .. "Current emote: \"" .. data.currentName .. "\", Invalid select emote: \"" .. data.selectName .. "\"\n"
+                end
+                emoteEnabled[data.slot] = false
+            end
+            message = message .. "\n"
+        end
+        
+        if #missingEmoteSlots > 0 then
+            message = message .. "✗ Failed to apply emote on:\n"
+            for _, slot in ipairs(missingEmoteSlots) do
+                if currentEmotes[slot] == "" then
+                    message = message .. "Slot " .. slot .. " - Current emote slot is missing text\n"
+                else
+                    message = message .. "Slot " .. slot .. " - Select emote slot is missing text\n"
+                end
+                emoteEnabled[slot] = false
+            end
+        end
+        
+        Fluent:Notify({
+            Title = "Emote Changer",
+            Content = message,
+            Duration = 8
+        })
+        
+        print("Emote Changer: Applied mappings")
+        print("Enabled slots:")
+        for i = 1, 12 do
+            if emoteEnabled[i] then
+                print("Slot " .. i .. ": " .. currentEmotes[i] .. " -> " .. selectEmotes[i])
+            end
+        end
+    end
+})
+
+VisualsEmoteReset = VisualsTab:AddButton({
+    Title = "Reset All Emotes",
+    Callback = function()
+        for i = 1, 12 do
+            currentEmotes[i] = ""
+            selectEmotes[i] = ""
+            emoteEnabled[i] = false
+            
+            if currentEmoteInputs[i] then
+                currentEmoteInputs[i]:SetValue("")
+            end
+            if selectEmoteInputs[i] then
+                selectEmoteInputs[i]:SetValue("")
+            end
+        end
+        
+        Fluent:Notify({
+            Title = "Emote Changer", 
+            Content = "All emotes have been reset!",
+            Duration = 3
+        })
+    end
+})
+VisualsTab:AddSection("Emote Replacer (very buggy)")
+
+EmoteReplacer = {
+    CurrentEmotes = {},
+    SelectedEmotes = {},
+    SwappedPairs = {},
+    InputFields = {}
+}
+
+for i = 1, 12 do
+    EmoteReplacer.CurrentEmotes[i] = ""
+    EmoteReplacer.SelectedEmotes[i] = ""
+end
+
+VisualsTab:AddParagraph({ Title = "This Script is for bad executor", Content = "" })
+VisualsTab:AddParagraph({ Title = "Current Emotes", Content = "" })
+
+for i = 1, 12 do
+    EmoteReplacer.InputFields["CurrentEmote" .. i] = VisualsTab:AddInput("CurrentEmote" .. i, {
+        Title = "Current Emote " .. i,
+        Default = "",
+        Placeholder = "Enter current emote name",
+        Finished = false,
+        Callback = function(Value)
+            EmoteReplacer.CurrentEmotes[i] = Value
+        end
+    })
+end
+
+VisualsTab:AddParagraph({ Title = "Selected Emotes", Content = "" })
+
+for i = 1, 12 do
+    EmoteReplacer.InputFields["SelectedEmote" .. i] = VisualsTab:AddInput("SelectedEmote" .. i, {
+        Title = "Select Emote " .. i,
+        Default = "",
+        Placeholder = "Enter replacement emote name",
+        Finished = false,
+        Callback = function(Value)
+            EmoteReplacer.SelectedEmotes[i] = Value
+        end
+    })
+end
+
+function SwapEmoteNames(currentName, selectedName)
+    Items = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+    if not Items then 
+        print("Emote Replacer: Items folder not found")
+        return false 
+    end
+    
+    EmotesFolder = Items:FindFirstChild("Emotes")
+    if not EmotesFolder then 
+        print("Emote Replacer: Emotes folder not found")
+        return false 
+    end
+    
+    currentEmoteObj = EmotesFolder:FindFirstChild(currentName)
+    selectedEmoteObj = EmotesFolder:FindFirstChild(selectedName)
+    
+    if currentEmoteObj and selectedEmoteObj then
+        tempName = selectedName .. "_EmoteSwapTemp"
+        
+        while EmotesFolder:FindFirstChild(tempName) do
+            tempName = tempName .. "_"
+        end
+        
+        currentEmoteObj.Name = tempName
+        selectedEmoteObj.Name = currentName
+        currentEmoteObj.Name = selectedName
+        
+        print("Emote Replacer: Swapped", currentName, "with", selectedName)
+        return true
+    else
+        print("Emote Replacer: Could not find emotes:", currentName, "or", selectedName)
+        return false
+    end
+end
+
+function ResetEmoteNames()
+    Items = game:GetService("ReplicatedStorage"):FindFirstChild("Items")
+    if not Items then return false end
+    
+    EmotesFolder = Items:FindFirstChild("Emotes")
+    if not EmotesFolder then return false end
+    
+    for currentEmote, selectedEmote in pairs(EmoteReplacer.SwappedPairs) do
+        currentEmoteObj = EmotesFolder:FindFirstChild(selectedEmote)
+        selectedEmoteObj = EmotesFolder:FindFirstChild(currentEmote)
+        
+        if currentEmoteObj and selectedEmoteObj then
+            tempName = currentEmote .. "_EmoteSwapTemp"
+            
+            while EmotesFolder:FindFirstChild(tempName) do
+                tempName = tempName .. "_"
+            end
+            
+            currentEmoteObj.Name = tempName
+            selectedEmoteObj.Name = selectedEmote
+            currentEmoteObj.Name = currentEmote
+            
+            print("Emote Replacer: Reset", selectedEmote, "back to", currentEmote)
+        end
+    end
+    
+    return true
+end
+
+EmoteSwapApplyButton = VisualsTab:AddButton({
+    Title = "Apply Emote Swap",
+    Callback = function()
+        swappedCount = 0
+        failedCount = 0
+        
+        for i = 1, 12 do
+            currentEmote = EmoteReplacer.CurrentEmotes[i]
+            selectedEmote = EmoteReplacer.SelectedEmotes[i]
+            
+            if currentEmote ~= "" and selectedEmote ~= "" then
+                if SwapEmoteNames(currentEmote, selectedEmote) then
+                    EmoteReplacer.SwappedPairs[currentEmote] = selectedEmote
+                    swappedCount = swappedCount + 1
+                else
+                    failedCount = failedCount + 1
+                end
+            end
+        end
+        
+        message = ""
+        if swappedCount > 0 then
+            message = "Successfully swapped " .. tostring(swappedCount) .. " emote(s)"
+        end
+        if failedCount > 0 then
+            if message ~= "" then message = message .. " | " end
+            message = message .. "Failed to swap " .. tostring(failedCount) .. " emote(s)"
+        end
+        if message == "" then
+            message = "No emotes specified to swap"
+        end
+        
+        Fluent:Notify({
+            Title = "Emote Replacer",
+            Content = message,
+            Duration = 3
+        })
+    end
+})
+
+EmoteSwapResetButton = VisualsTab:AddButton({
+    Title = "Reset Emote Module",
+    Callback = function()
+        if ResetEmoteNames() then
+            EmoteReplacer.SwappedPairs = {}
+            
+            for i = 1, 12 do
+                EmoteReplacer.CurrentEmotes[i] = ""
+                EmoteReplacer.SelectedEmotes[i] = ""
+                
+                if EmoteReplacer.InputFields["CurrentEmote" .. i] then
+                    EmoteReplacer.InputFields["CurrentEmote" .. i]:SetValue("")
+                end
+                if EmoteReplacer.InputFields["SelectedEmote" .. i] then
+                    EmoteReplacer.InputFields["SelectedEmote" .. i]:SetValue("")
+                end
+            end
+            
+            Fluent:Notify({
+                Title = "Emote Replacer",
+                Content = "All emotes have been restored to original names!",
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "Emote Replacer",
+                Content = "Failed to reset emotes!",
+                Duration = 3
+            })
+        end
+    end
+})
+
+player.CharacterRemoving:Connect(function()
+    if next(EmoteReplacer.SwappedPairs) then
+        ResetEmoteNames()
+    end
+end)
+
+player.CharacterAdded:Connect(function(character)
+    task.wait(1)
+    
+    if character:GetAttribute("Downed") then
+        return
+    end
+    
+    if next(EmoteReplacer.SwappedPairs) then
+        for currentEmote, selectedEmote in pairs(EmoteReplacer.SwappedPairs) do
+            SwapEmoteNames(currentEmote, selectedEmote)
+        end
+    end
+end)
+
+local SettingsTab = Window:AddTab({ Title = "Settings", Icon = "settings" })
+
+SettingsTab:AddSection("Configuration")
+
+SettingsTab:AddButton({
+    Title = "Save Configuration",
+    Description = "Save current settings to config file",
+    Callback = function()
+        SaveManager:Save()
+        Fluent:Notify({
+            Title = "Settings",
+            Content = "Configuration saved successfully!",
+            Duration = 3
+        })
+    end
+})
+
+SettingsTab:AddButton({
+    Title = "Load Configuration",
+    Description = "Load settings from config file",
+    Callback = function()
+        SaveManager:Load()
+        Fluent:Notify({
+            Title = "Settings",
+            Content = "Configuration loaded successfully!",
+            Duration = 3
+        })
+    end
+})
+
+SettingsTab:AddButton({
+    Title = "Reset Configuration",
+    Description = "Reset all settings to default",
+    Callback = function()
+        Window:Dialog({
+            Title = "Reset Configuration",
+            Content = "Are you sure you want to reset all settings to default?",
+            Buttons = {
+                {
+                    Title = "Confirm",
+                    Callback = function()
+                        SaveManager:Reset()
+                        Fluent:Notify({
+                            Title = "Settings",
+                            Content = "Configuration reset to default!",
+                            Duration = 3
+                        })
+                    end
+                },
+                {
+                    Title = "Cancel",
+                    Callback = function()
+                        print("Reset cancelled.")
+                    end
+                }
+            }
+        })
+    end
+})
+
+SettingsTab:AddParagraph({
+    Title = "Auto Load",
+    Content = "The configuration will automatically load when the script starts."
+})
+
+SettingsTab:AddSection("Interface Manager")
 InterfaceManager:SetLibrary(Fluent)
+InterfaceManager:SetFolder("DraconicXEvade")
+InterfaceManager:BuildInterfaceSection(SettingsTab)
+
+SettingsTab:AddSection("Save Manager")
+SaveManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("DraconicXEvade")
 SaveManager:SetFolder("DraconicXEvade/Config")
+SaveManager:BuildConfigSection(SettingsTab)
+
+task.spawn(function()
+    task.wait(1)
+    SaveManager:LoadAutoloadConfig()
+end)
 
 Window:SelectTab(1)
 SaveManager:LoadAutoloadConfig()
