@@ -4069,6 +4069,74 @@ LagSwitchScaleInput = MiscTab:AddInput("LagSwitchScaleInput", {
         end
     end
 })
+MiscTab:AddSection("Camera Adjustments")
+
+local cameraStretchConnection = nil
+local stretchHorizontal = 0.80
+local stretchVertical = 0.80
+
+local function setupCameraStretch()
+    if cameraStretchConnection then 
+        cameraStretchConnection:Disconnect() 
+        cameraStretchConnection = nil
+    end
+    
+    cameraStretchConnection = game:GetService("RunService").RenderStepped:Connect(function()
+        local Camera = workspace.CurrentCamera
+        if Camera then
+            Camera.CFrame = Camera.CFrame * CFrame.new(0, 0, 0, stretchHorizontal, 0, 0, 0, stretchVertical, 0, 0, 0, 1)
+        end
+    end)
+end
+
+CameraStretchToggle = MiscTab:AddToggle("CameraStretchToggle", {
+    Title = "Camera Stretch",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            setupCameraStretch()
+        else
+            if cameraStretchConnection then
+                cameraStretchConnection:Disconnect()
+                cameraStretchConnection = nil
+            end
+        end
+    end
+})
+
+CameraStretchHorizontalInput = MiscTab:AddInput("CameraStretchHorizontalInput", {
+    Title = "Camera Stretch Horizontal",
+    Default = "0.80",
+    Placeholder = "Enter horizontal stretch value",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num then
+            stretchHorizontal = num
+            if Options.CameraStretchToggle and Options.CameraStretchToggle.Value then
+                setupCameraStretch()
+            end
+        end
+    end
+})
+
+CameraStretchVerticalInput = MiscTab:AddInput("CameraStretchVerticalInput", {
+    Title = "Camera Stretch Vertical",
+    Default = "0.80",
+    Placeholder = "Enter vertical stretch value",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        local num = tonumber(Value)
+        if num then
+            stretchVertical = num
+            if Options.CameraStretchToggle and Options.CameraStretchToggle.Value then
+                setupCameraStretch()
+            end
+        end
+    end
+})
 MiscTab:AddSection("Client Modification")
 
 FullBrightToggle = MiscTab:AddToggle("FullBrightToggle", {
